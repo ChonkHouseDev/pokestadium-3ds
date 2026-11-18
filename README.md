@@ -3,6 +3,9 @@
 A native Nintendo 3DS port of Pokémon Stadium (N64, US 1.0), built from the
 [pret/pokestadium](https://github.com/pret/pokestadium) decompilation. It runs on an Old 3DS.
 
+**Website: [pokemon-stadium-3ds.netlify.app](https://pokemon-stadium-3ds.netlify.app/)**: what the port is,
+what you need and how to install it.
+
 This repository contains **no game data**. You need your own copy of the game.
 
 ## Play it
