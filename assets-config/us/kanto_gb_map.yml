@@ -1,0 +1,6 @@
+kanto_gb_map:
+  symbol: kanto_gb_map
+  type: STADIUM:PERS_SZP
+  offset: 0x6C4E50
+  size: 0x58E0
+

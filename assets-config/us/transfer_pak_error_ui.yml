@@ -1,0 +1,6 @@
+transfer_pak_error_ui:
+  symbol: transfer_pak_error_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x6E8910
+  size: 0x2A30
+

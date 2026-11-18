@@ -1,0 +1,6 @@
+area_select_ui:
+  symbol: area_select_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x4D1330
+  size: 0x19D90
+

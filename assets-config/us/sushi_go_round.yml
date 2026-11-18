@@ -1,0 +1,6 @@
+sushi_go_round:
+  symbol: sushi_go_round
+  type: STADIUM:PERS_SZP
+  offset: 0x5F6790
+  size: 0x2B10
+

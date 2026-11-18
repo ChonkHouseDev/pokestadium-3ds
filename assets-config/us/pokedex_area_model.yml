@@ -1,0 +1,6 @@
+pokedex_area_model:
+  symbol: pokedex_area_model
+  type: STADIUM:PERS_SZP
+  offset: 0x5C7AD0
+  size: 0x2ECC0
+

@@ -1,0 +1,84 @@
+battle_headers_header:
+  symbol: battle_headers_header
+  type: STADIUM:RAW
+  offset: 0x45B580
+  size: 0xE0
+
+battle_headers_000:
+  symbol: battle_headers_000
+  type: STADIUM:PERS_SZP
+  offset: 0x45B660
+  size: 0x5FA0
+
+battle_headers_001:
+  symbol: battle_headers_001
+  type: STADIUM:PERS_SZP
+  offset: 0x461600
+  size: 0x6640
+
+battle_headers_002:
+  symbol: battle_headers_002
+  type: STADIUM:PERS_SZP
+  offset: 0x467C40
+  size: 0x6140
+
+battle_headers_003:
+  symbol: battle_headers_003
+  type: STADIUM:PERS_SZP
+  offset: 0x46DD80
+  size: 0x51D0
+
+battle_headers_004:
+  symbol: battle_headers_004
+  type: STADIUM:PERS_SZP
+  offset: 0x472F50
+  size: 0x53B0
+
+battle_headers_005:
+  symbol: battle_headers_005
+  type: STADIUM:PERS_SZP
+  offset: 0x478300
+  size: 0x5000
+
+battle_headers_006:
+  symbol: battle_headers_006
+  type: STADIUM:PERS_SZP
+  offset: 0x47D300
+  size: 0x5CF0
+
+battle_headers_007:
+  symbol: battle_headers_007
+  type: STADIUM:PERS_SZP
+  offset: 0x482FF0
+  size: 0x55B0
+
+battle_headers_008:
+  symbol: battle_headers_008
+  type: STADIUM:PERS_SZP
+  offset: 0x4885A0
+  size: 0x3E10
+
+battle_headers_009:
+  symbol: battle_headers_009
+  type: STADIUM:PERS_SZP
+  offset: 0x48C3B0
+  size: 0x4B80
+
+battle_headers_010:
+  symbol: battle_headers_010
+  type: STADIUM:PERS_SZP
+  offset: 0x490F30
+  size: 0x57C0
+
+battle_headers_011:
+  symbol: battle_headers_011
+  type: STADIUM:PERS_SZP
+  offset: 0x4966F0
+  size: 0x5650
+
+battle_headers_012:
+  symbol: battle_headers_012
+  type: STADIUM:PERS_SZP
+  offset: 0x49BD40
+  size: 0x6480
+

@@ -1,0 +1,384 @@
+unk_8CC000_header:
+  symbol: unk_8CC000_header
+  type: STADIUM:RAW
+  offset: 0x8CC000
+  size: 0x400
+
+unk_8CC000_000:
+  symbol: unk_8CC000_000
+  type: STADIUM:PERS_SZP
+  offset: 0x8CC400
+  size: 0x3E10
+
+unk_8CC000_001:
+  symbol: unk_8CC000_001
+  type: STADIUM:PERS_SZP
+  offset: 0x8D0210
+  size: 0x50
+
+unk_8CC000_002:
+  symbol: unk_8CC000_002
+  type: STADIUM:PERS_SZP
+  offset: 0x8D0260
+  size: 0x390
+
+unk_8CC000_003:
+  symbol: unk_8CC000_003
+  type: STADIUM:PERS_SZP
+  offset: 0x8D05F0
+  size: 0x2590
+
+unk_8CC000_004:
+  symbol: unk_8CC000_004
+  type: STADIUM:PERS_SZP
+  offset: 0x8D2B80
+  size: 0x160
+
+unk_8CC000_005:
+  symbol: unk_8CC000_005
+  type: STADIUM:PERS_SZP
+  offset: 0x8D2CE0
+  size: 0x3380
+
+unk_8CC000_006:
+  symbol: unk_8CC000_006
+  type: STADIUM:PERS_SZP
+  offset: 0x8D6060
+  size: 0x1720
+
+unk_8CC000_007:
+  symbol: unk_8CC000_007
+  type: STADIUM:PERS_SZP
+  offset: 0x8D7780
+  size: 0x2270
+
+unk_8CC000_008:
+  symbol: unk_8CC000_008
+  type: STADIUM:PERS_SZP
+  offset: 0x8D99F0
+  size: 0x700
+
+unk_8CC000_009:
+  symbol: unk_8CC000_009
+  type: STADIUM:PERS_SZP
+  offset: 0x8DA0F0
+  size: 0x1030
+
+unk_8CC000_010:
+  symbol: unk_8CC000_010
+  type: STADIUM:PERS_SZP
+  offset: 0x8DB120
+  size: 0xF80
+
+unk_8CC000_011:
+  symbol: unk_8CC000_011
+  type: STADIUM:PERS_SZP
+  offset: 0x8DC0A0
+  size: 0xD50
+
+unk_8CC000_012:
+  symbol: unk_8CC000_012
+  type: STADIUM:PERS_SZP
+  offset: 0x8DCDF0
+  size: 0x290
+
+unk_8CC000_013:
+  symbol: unk_8CC000_013
+  type: STADIUM:PERS_SZP
+  offset: 0x8DD080
+  size: 0x870
+
+unk_8CC000_014:
+  symbol: unk_8CC000_014
+  type: STADIUM:PERS_SZP
+  offset: 0x8DD8F0
+  size: 0x11E0
+
+unk_8CC000_015:
+  symbol: unk_8CC000_015
+  type: STADIUM:PERS_SZP
+  offset: 0x8DEAD0
+  size: 0x2CF0
+
+unk_8CC000_016:
+  symbol: unk_8CC000_016
+  type: STADIUM:PERS_SZP
+  offset: 0x8E17C0
+  size: 0x430
+
+unk_8CC000_017:
+  symbol: unk_8CC000_017
+  type: STADIUM:PERS_SZP
+  offset: 0x8E1BF0
+  size: 0x4070
+
+unk_8CC000_018:
+  symbol: unk_8CC000_018
+  type: STADIUM:PERS_SZP
+  offset: 0x8E5C60
+  size: 0x4C00
+
+unk_8CC000_019:
+  symbol: unk_8CC000_019
+  type: STADIUM:PERS_SZP
+  offset: 0x8EA860
+  size: 0xDE0
+
+unk_8CC000_020:
+  symbol: unk_8CC000_020
+  type: STADIUM:PERS_SZP
+  offset: 0x8EB640
+  size: 0x6F0
+
+unk_8CC000_021:
+  symbol: unk_8CC000_021
+  type: STADIUM:PERS_SZP
+  offset: 0x8EBD30
+  size: 0x1440
+
+unk_8CC000_022:
+  symbol: unk_8CC000_022
+  type: STADIUM:PERS_SZP
+  offset: 0x8ED170
+  size: 0x540
+
+unk_8CC000_023:
+  symbol: unk_8CC000_023
+  type: STADIUM:PERS_SZP
+  offset: 0x8ED6B0
+  size: 0x1250
+
+unk_8CC000_024:
+  symbol: unk_8CC000_024
+  type: STADIUM:PERS_SZP
+  offset: 0x8EE900
+  size: 0x39A0
+
+unk_8CC000_025:
+  symbol: unk_8CC000_025
+  type: STADIUM:PERS_SZP
+  offset: 0x8F22A0
+  size: 0xB30
+
+unk_8CC000_026:
+  symbol: unk_8CC000_026
+  type: STADIUM:PERS_SZP
+  offset: 0x8F2DD0
+  size: 0x8C0
+
+unk_8CC000_027:
+  symbol: unk_8CC000_027
+  type: STADIUM:PERS_SZP
+  offset: 0x8F3690
+  size: 0x1E70
+
+unk_8CC000_028:
+  symbol: unk_8CC000_028
+  type: STADIUM:PERS_SZP
+  offset: 0x8F5500
+  size: 0x390
+
+unk_8CC000_029:
+  symbol: unk_8CC000_029
+  type: STADIUM:PERS_SZP
+  offset: 0x8F5890
+  size: 0x180
+
+unk_8CC000_030:
+  symbol: unk_8CC000_030
+  type: STADIUM:PERS_SZP
+  offset: 0x8F5A10
+  size: 0x440
+
+unk_8CC000_031:
+  symbol: unk_8CC000_031
+  type: STADIUM:PERS_SZP
+  offset: 0x8F5E50
+  size: 0x1110
+
+unk_8CC000_032:
+  symbol: unk_8CC000_032
+  type: STADIUM:PERS_SZP
+  offset: 0x8F6F60
+  size: 0x2E0
+
+unk_8CC000_033:
+  symbol: unk_8CC000_033
+  type: STADIUM:PERS_SZP
+  offset: 0x8F7240
+  size: 0x870
+
+unk_8CC000_034:
+  symbol: unk_8CC000_034
+  type: STADIUM:PERS_SZP
+  offset: 0x8F7AB0
+  size: 0x12C0
+
+unk_8CC000_035:
+  symbol: unk_8CC000_035
+  type: STADIUM:PERS_SZP
+  offset: 0x8F8D70
+  size: 0x190
+
+unk_8CC000_036:
+  symbol: unk_8CC000_036
+  type: STADIUM:PERS_SZP
+  offset: 0x8F8F00
+  size: 0x170
+
+unk_8CC000_037:
+  symbol: unk_8CC000_037
+  type: STADIUM:PERS_SZP
+  offset: 0x8F9070
+  size: 0x880
+
+unk_8CC000_038:
+  symbol: unk_8CC000_038
+  type: STADIUM:PERS_SZP
+  offset: 0x8F98F0
+  size: 0x1BB0
+
+unk_8CC000_039:
+  symbol: unk_8CC000_039
+  type: STADIUM:PERS_SZP
+  offset: 0x8FB4A0
+  size: 0x1200
+
+unk_8CC000_040:
+  symbol: unk_8CC000_040
+  type: STADIUM:PERS_SZP
+  offset: 0x8FC6A0
+  size: 0x2720
+
+unk_8CC000_041:
+  symbol: unk_8CC000_041
+  type: STADIUM:PERS_SZP
+  offset: 0x8FEDC0
+  size: 0x2350
+
+unk_8CC000_042:
+  symbol: unk_8CC000_042
+  type: STADIUM:PERS_SZP
+  offset: 0x901110
+  size: 0x14A0
+
+unk_8CC000_043:
+  symbol: unk_8CC000_043
+  type: STADIUM:PERS_SZP
+  offset: 0x9025B0
+  size: 0x2160
+
+unk_8CC000_044:
+  symbol: unk_8CC000_044
+  type: STADIUM:PERS_SZP
+  offset: 0x904710
+  size: 0x1C00
+
+unk_8CC000_045:
+  symbol: unk_8CC000_045
+  type: STADIUM:PERS_SZP
+  offset: 0x906310
+  size: 0x50
+
+unk_8CC000_046:
+  symbol: unk_8CC000_046
+  type: STADIUM:PERS_SZP
+  offset: 0x906360
+  size: 0xFA0
+
+unk_8CC000_047:
+  symbol: unk_8CC000_047
+  type: STADIUM:PERS_SZP
+  offset: 0x907300
+  size: 0x1060
+
+unk_8CC000_048:
+  symbol: unk_8CC000_048
+  type: STADIUM:PERS_SZP
+  offset: 0x908360
+  size: 0xC90
+
+unk_8CC000_049:
+  symbol: unk_8CC000_049
+  type: STADIUM:PERS_SZP
+  offset: 0x908FF0
+  size: 0x2FF0
+
+unk_8CC000_050:
+  symbol: unk_8CC000_050
+  type: STADIUM:PERS_SZP
+  offset: 0x90BFE0
+  size: 0x1040
+
+unk_8CC000_051:
+  symbol: unk_8CC000_051
+  type: STADIUM:PERS_SZP
+  offset: 0x90D020
+  size: 0x22A0
+
+unk_8CC000_052:
+  symbol: unk_8CC000_052
+  type: STADIUM:PERS_SZP
+  offset: 0x90F2C0
+  size: 0x1E20
+
+unk_8CC000_053:
+  symbol: unk_8CC000_053
+  type: STADIUM:PERS_SZP
+  offset: 0x9110E0
+  size: 0x4F00
+
+unk_8CC000_054:
+  symbol: unk_8CC000_054
+  type: STADIUM:PERS_SZP
+  offset: 0x915FE0
+  size: 0x1910
+
+unk_8CC000_055:
+  symbol: unk_8CC000_055
+  type: STADIUM:PERS_SZP
+  offset: 0x9178F0
+  size: 0xA80
+
+unk_8CC000_056:
+  symbol: unk_8CC000_056
+  type: STADIUM:PERS_SZP
+  offset: 0x918370
+  size: 0x910
+
+unk_8CC000_057:
+  symbol: unk_8CC000_057
+  type: STADIUM:PERS_SZP
+  offset: 0x918C80
+  size: 0x3A0
+
+unk_8CC000_058:
+  symbol: unk_8CC000_058
+  type: STADIUM:PERS_SZP
+  offset: 0x919020
+  size: 0x1CA0
+
+unk_8CC000_059:
+  symbol: unk_8CC000_059
+  type: STADIUM:PERS_SZP
+  offset: 0x91ACC0
+  size: 0xE80
+
+unk_8CC000_060:
+  symbol: unk_8CC000_060
+  type: STADIUM:PERS_SZP
+  offset: 0x91BB40
+  size: 0x650
+
+unk_8CC000_061:
+  symbol: unk_8CC000_061
+  type: STADIUM:PERS_SZP
+  offset: 0x91C190
+  size: 0x1780
+
+unk_8CC000_062:
+  symbol: unk_8CC000_062
+  type: STADIUM:PERS_SZP
+  offset: 0x91D910
+  size: 0x430
+

@@ -1,0 +1,1296 @@
+pokemon_models_header:
+  symbol: pokemon_models_header
+  type: STADIUM:RAW
+  offset: 0x920000
+  size: 0xD80
+
+pokemon_models_000:
+  symbol: pokemon_models_000
+  type: STADIUM:PERS_SZP
+  offset: 0x920D80
+  size: 0xDE90
+
+pokemon_models_001:
+  symbol: pokemon_models_001
+  type: STADIUM:PERS_SZP
+  offset: 0x92EC10
+  size: 0x21140
+
+pokemon_models_002:
+  symbol: pokemon_models_002
+  type: STADIUM:PERS_SZP
+  offset: 0x94FD50
+  size: 0x25090
+
+pokemon_models_003:
+  symbol: pokemon_models_003
+  type: STADIUM:PERS_SZP
+  offset: 0x974DE0
+  size: 0x18D40
+
+pokemon_models_004:
+  symbol: pokemon_models_004
+  type: STADIUM:PERS_SZP
+  offset: 0x98DB20
+  size: 0x13FA0
+
+pokemon_models_005:
+  symbol: pokemon_models_005
+  type: STADIUM:PERS_SZP
+  offset: 0x9A1AC0
+  size: 0x1CD60
+
+pokemon_models_006:
+  symbol: pokemon_models_006
+  type: STADIUM:PERS_SZP
+  offset: 0x9BE820
+  size: 0xF530
+
+pokemon_models_007:
+  symbol: pokemon_models_007
+  type: STADIUM:PERS_SZP
+  offset: 0x9CDD50
+  size: 0x1B6A0
+
+pokemon_models_008:
+  symbol: pokemon_models_008
+  type: STADIUM:PERS_SZP
+  offset: 0x9E93F0
+  size: 0x15A60
+
+pokemon_models_009:
+  symbol: pokemon_models_009
+  type: STADIUM:PERS_SZP
+  offset: 0x9FEE50
+  size: 0x6B60
+
+pokemon_models_010:
+  symbol: pokemon_models_010
+  type: STADIUM:PERS_SZP
+  offset: 0xA059B0
+  size: 0x5330
+
+pokemon_models_011:
+  symbol: pokemon_models_011
+  type: STADIUM:PERS_SZP
+  offset: 0xA0ACE0
+  size: 0xC960
+
+pokemon_models_012:
+  symbol: pokemon_models_012
+  type: STADIUM:PERS_SZP
+  offset: 0xA17640
+  size: 0x8C60
+
+pokemon_models_013:
+  symbol: pokemon_models_013
+  type: STADIUM:PERS_SZP
+  offset: 0xA202A0
+  size: 0x3E60
+
+pokemon_models_014:
+  symbol: pokemon_models_014
+  type: STADIUM:PERS_SZP
+  offset: 0xA24100
+  size: 0x10530
+
+pokemon_models_015:
+  symbol: pokemon_models_015
+  type: STADIUM:PERS_SZP
+  offset: 0xA34630
+  size: 0x1FDC0
+
+pokemon_models_016:
+  symbol: pokemon_models_016
+  type: STADIUM:PERS_SZP
+  offset: 0xA543F0
+  size: 0x270C0
+
+pokemon_models_017:
+  symbol: pokemon_models_017
+  type: STADIUM:PERS_SZP
+  offset: 0xA7B4B0
+  size: 0x26550
+
+pokemon_models_018:
+  symbol: pokemon_models_018
+  type: STADIUM:PERS_SZP
+  offset: 0xAA1A00
+  size: 0x1AF50
+
+pokemon_models_019:
+  symbol: pokemon_models_019
+  type: STADIUM:PERS_SZP
+  offset: 0xABC950
+  size: 0xF450
+
+pokemon_models_020:
+  symbol: pokemon_models_020
+  type: STADIUM:PERS_SZP
+  offset: 0xACBDA0
+  size: 0x1EDA0
+
+pokemon_models_021:
+  symbol: pokemon_models_021
+  type: STADIUM:PERS_SZP
+  offset: 0xAEAB40
+  size: 0x24710
+
+pokemon_models_022:
+  symbol: pokemon_models_022
+  type: STADIUM:PERS_SZP
+  offset: 0xB0F250
+  size: 0x11720
+
+pokemon_models_023:
+  symbol: pokemon_models_023
+  type: STADIUM:PERS_SZP
+  offset: 0xB20970
+  size: 0xE1C0
+
+pokemon_models_024:
+  symbol: pokemon_models_024
+  type: STADIUM:PERS_SZP
+  offset: 0xB2EB30
+  size: 0x19680
+
+pokemon_models_025:
+  symbol: pokemon_models_025
+  type: STADIUM:PERS_SZP
+  offset: 0xB481B0
+  size: 0x25360
+
+pokemon_models_026:
+  symbol: pokemon_models_026
+  type: STADIUM:PERS_SZP
+  offset: 0xB6D510
+  size: 0x100E0
+
+pokemon_models_027:
+  symbol: pokemon_models_027
+  type: STADIUM:PERS_SZP
+  offset: 0xB7D5F0
+  size: 0x244B0
+
+pokemon_models_028:
+  symbol: pokemon_models_028
+  type: STADIUM:PERS_SZP
+  offset: 0xBA1AA0
+  size: 0xDBF0
+
+pokemon_models_029:
+  symbol: pokemon_models_029
+  type: STADIUM:PERS_SZP
+  offset: 0xBAF690
+  size: 0xFA30
+
+pokemon_models_030:
+  symbol: pokemon_models_030
+  type: STADIUM:PERS_SZP
+  offset: 0xBBF0C0
+  size: 0x178B0
+
+pokemon_models_031:
+  symbol: pokemon_models_031
+  type: STADIUM:PERS_SZP
+  offset: 0xBD6970
+  size: 0xD590
+
+pokemon_models_032:
+  symbol: pokemon_models_032
+  type: STADIUM:PERS_SZP
+  offset: 0xBE3F00
+  size: 0xF780
+
+pokemon_models_033:
+  symbol: pokemon_models_033
+  type: STADIUM:PERS_SZP
+  offset: 0xBF3680
+  size: 0x16010
+
+pokemon_models_034:
+  symbol: pokemon_models_034
+  type: STADIUM:PERS_SZP
+  offset: 0xC09690
+  size: 0x110F0
+
+pokemon_models_035:
+  symbol: pokemon_models_035
+  type: STADIUM:PERS_SZP
+  offset: 0xC1A780
+  size: 0xF580
+
+pokemon_models_036:
+  symbol: pokemon_models_036
+  type: STADIUM:PERS_SZP
+  offset: 0xC29D00
+  size: 0x18150
+
+pokemon_models_037:
+  symbol: pokemon_models_037
+  type: STADIUM:PERS_SZP
+  offset: 0xC41E50
+  size: 0x1EFC0
+
+pokemon_models_038:
+  symbol: pokemon_models_038
+  type: STADIUM:PERS_SZP
+  offset: 0xC60E10
+  size: 0xAA70
+
+pokemon_models_039:
+  symbol: pokemon_models_039
+  type: STADIUM:PERS_SZP
+  offset: 0xC6B880
+  size: 0xEA40
+
+pokemon_models_040:
+  symbol: pokemon_models_040
+  type: STADIUM:PERS_SZP
+  offset: 0xC7A2C0
+  size: 0xB300
+
+pokemon_models_041:
+  symbol: pokemon_models_041
+  type: STADIUM:PERS_SZP
+  offset: 0xC855C0
+  size: 0xFCA0
+
+pokemon_models_042:
+  symbol: pokemon_models_042
+  type: STADIUM:PERS_SZP
+  offset: 0xC95260
+  size: 0x14E40
+
+pokemon_models_043:
+  symbol: pokemon_models_043
+  type: STADIUM:PERS_SZP
+  offset: 0xCAA0A0
+  size: 0x19970
+
+pokemon_models_044:
+  symbol: pokemon_models_044
+  type: STADIUM:PERS_SZP
+  offset: 0xCC3A10
+  size: 0xAED0
+
+pokemon_models_045:
+  symbol: pokemon_models_045
+  type: STADIUM:PERS_SZP
+  offset: 0xCCE8E0
+  size: 0x9650
+
+pokemon_models_046:
+  symbol: pokemon_models_046
+  type: STADIUM:PERS_SZP
+  offset: 0xCD7F30
+  size: 0x8F10
+
+pokemon_models_047:
+  symbol: pokemon_models_047
+  type: STADIUM:PERS_SZP
+  offset: 0xCE0E40
+  size: 0x168A0
+
+pokemon_models_048:
+  symbol: pokemon_models_048
+  type: STADIUM:PERS_SZP
+  offset: 0xCF76E0
+  size: 0x9EB0
+
+pokemon_models_049:
+  symbol: pokemon_models_049
+  type: STADIUM:PERS_SZP
+  offset: 0xD01590
+  size: 0x5980
+
+pokemon_models_050:
+  symbol: pokemon_models_050
+  type: STADIUM:PERS_SZP
+  offset: 0xD06F10
+  size: 0x9900
+
+pokemon_models_051:
+  symbol: pokemon_models_051
+  type: STADIUM:PERS_SZP
+  offset: 0xD10810
+  size: 0x109C0
+
+pokemon_models_052:
+  symbol: pokemon_models_052
+  type: STADIUM:PERS_SZP
+  offset: 0xD211D0
+  size: 0x18CE0
+
+pokemon_models_053:
+  symbol: pokemon_models_053
+  type: STADIUM:PERS_SZP
+  offset: 0xD39EB0
+  size: 0x10540
+
+pokemon_models_054:
+  symbol: pokemon_models_054
+  type: STADIUM:PERS_SZP
+  offset: 0xD4A3F0
+  size: 0x14760
+
+pokemon_models_055:
+  symbol: pokemon_models_055
+  type: STADIUM:PERS_SZP
+  offset: 0xD5EB50
+  size: 0x16F00
+
+pokemon_models_056:
+  symbol: pokemon_models_056
+  type: STADIUM:PERS_SZP
+  offset: 0xD75A50
+  size: 0x141A0
+
+pokemon_models_057:
+  symbol: pokemon_models_057
+  type: STADIUM:PERS_SZP
+  offset: 0xD89BF0
+  size: 0xFAC0
+
+pokemon_models_058:
+  symbol: pokemon_models_058
+  type: STADIUM:PERS_SZP
+  offset: 0xD996B0
+  size: 0x237E0
+
+pokemon_models_059:
+  symbol: pokemon_models_059
+  type: STADIUM:PERS_SZP
+  offset: 0xDBCE90
+  size: 0xF7D0
+
+pokemon_models_060:
+  symbol: pokemon_models_060
+  type: STADIUM:PERS_SZP
+  offset: 0xDCC660
+  size: 0xF3A0
+
+pokemon_models_061:
+  symbol: pokemon_models_061
+  type: STADIUM:PERS_SZP
+  offset: 0xDDBA00
+  size: 0x14470
+
+pokemon_models_062:
+  symbol: pokemon_models_062
+  type: STADIUM:PERS_SZP
+  offset: 0xDEFE70
+  size: 0xE2A0
+
+pokemon_models_063:
+  symbol: pokemon_models_063
+  type: STADIUM:PERS_SZP
+  offset: 0xDFE110
+  size: 0x1A250
+
+pokemon_models_064:
+  symbol: pokemon_models_064
+  type: STADIUM:PERS_SZP
+  offset: 0xE18360
+  size: 0x16730
+
+pokemon_models_065:
+  symbol: pokemon_models_065
+  type: STADIUM:PERS_SZP
+  offset: 0xE2EA90
+  size: 0x16AF0
+
+pokemon_models_066:
+  symbol: pokemon_models_066
+  type: STADIUM:PERS_SZP
+  offset: 0xE45580
+  size: 0x12820
+
+pokemon_models_067:
+  symbol: pokemon_models_067
+  type: STADIUM:PERS_SZP
+  offset: 0xE57DA0
+  size: 0x21210
+
+pokemon_models_068:
+  symbol: pokemon_models_068
+  type: STADIUM:PERS_SZP
+  offset: 0xE78FB0
+  size: 0x15020
+
+pokemon_models_069:
+  symbol: pokemon_models_069
+  type: STADIUM:PERS_SZP
+  offset: 0xE8DFD0
+  size: 0x10B50
+
+pokemon_models_070:
+  symbol: pokemon_models_070
+  type: STADIUM:PERS_SZP
+  offset: 0xE9EB20
+  size: 0x11A60
+
+pokemon_models_071:
+  symbol: pokemon_models_071
+  type: STADIUM:PERS_SZP
+  offset: 0xEB0580
+  size: 0xC040
+
+pokemon_models_072:
+  symbol: pokemon_models_072
+  type: STADIUM:PERS_SZP
+  offset: 0xEBC5C0
+  size: 0x12DA0
+
+pokemon_models_073:
+  symbol: pokemon_models_073
+  type: STADIUM:PERS_SZP
+  offset: 0xECF360
+  size: 0xC4E0
+
+pokemon_models_074:
+  symbol: pokemon_models_074
+  type: STADIUM:PERS_SZP
+  offset: 0xEDB840
+  size: 0x13B60
+
+pokemon_models_075:
+  symbol: pokemon_models_075
+  type: STADIUM:PERS_SZP
+  offset: 0xEEF3A0
+  size: 0x12B70
+
+pokemon_models_076:
+  symbol: pokemon_models_076
+  type: STADIUM:PERS_SZP
+  offset: 0xF01F10
+  size: 0x1DC80
+
+pokemon_models_077:
+  symbol: pokemon_models_077
+  type: STADIUM:PERS_SZP
+  offset: 0xF1FB90
+  size: 0x1E160
+
+pokemon_models_078:
+  symbol: pokemon_models_078
+  type: STADIUM:PERS_SZP
+  offset: 0xF3DCF0
+  size: 0xB660
+
+pokemon_models_079:
+  symbol: pokemon_models_079
+  type: STADIUM:PERS_SZP
+  offset: 0xF49350
+  size: 0x109F0
+
+pokemon_models_080:
+  symbol: pokemon_models_080
+  type: STADIUM:PERS_SZP
+  offset: 0xF59D40
+  size: 0x4C40
+
+pokemon_models_081:
+  symbol: pokemon_models_081
+  type: STADIUM:PERS_SZP
+  offset: 0xF5E980
+  size: 0xDF20
+
+pokemon_models_082:
+  symbol: pokemon_models_082
+  type: STADIUM:PERS_SZP
+  offset: 0xF6C8A0
+  size: 0x1B0C0
+
+pokemon_models_083:
+  symbol: pokemon_models_083
+  type: STADIUM:PERS_SZP
+  offset: 0xF87960
+  size: 0x15220
+
+pokemon_models_084:
+  symbol: pokemon_models_084
+  type: STADIUM:PERS_SZP
+  offset: 0xF9CB80
+  size: 0x225F0
+
+pokemon_models_085:
+  symbol: pokemon_models_085
+  type: STADIUM:PERS_SZP
+  offset: 0xFBF170
+  size: 0x9B30
+
+pokemon_models_086:
+  symbol: pokemon_models_086
+  type: STADIUM:PERS_SZP
+  offset: 0xFC8CA0
+  size: 0xCCD0
+
+pokemon_models_087:
+  symbol: pokemon_models_087
+  type: STADIUM:PERS_SZP
+  offset: 0xFD5970
+  size: 0x16400
+
+pokemon_models_088:
+  symbol: pokemon_models_088
+  type: STADIUM:PERS_SZP
+  offset: 0xFEBD70
+  size: 0x16F60
+
+pokemon_models_089:
+  symbol: pokemon_models_089
+  type: STADIUM:PERS_SZP
+  offset: 0x1002CD0
+  size: 0x70C0
+
+pokemon_models_090:
+  symbol: pokemon_models_090
+  type: STADIUM:PERS_SZP
+  offset: 0x1009D90
+  size: 0x8790
+
+pokemon_models_091:
+  symbol: pokemon_models_091
+  type: STADIUM:PERS_SZP
+  offset: 0x1012520
+  size: 0x6E20
+
+pokemon_models_092:
+  symbol: pokemon_models_092
+  type: STADIUM:PERS_SZP
+  offset: 0x1019340
+  size: 0x10E50
+
+pokemon_models_093:
+  symbol: pokemon_models_093
+  type: STADIUM:PERS_SZP
+  offset: 0x102A190
+  size: 0xC160
+
+pokemon_models_094:
+  symbol: pokemon_models_094
+  type: STADIUM:PERS_SZP
+  offset: 0x10362F0
+  size: 0xF010
+
+pokemon_models_095:
+  symbol: pokemon_models_095
+  type: STADIUM:PERS_SZP
+  offset: 0x1045300
+  size: 0x11F50
+
+pokemon_models_096:
+  symbol: pokemon_models_096
+  type: STADIUM:PERS_SZP
+  offset: 0x1057250
+  size: 0x1F910
+
+pokemon_models_097:
+  symbol: pokemon_models_097
+  type: STADIUM:PERS_SZP
+  offset: 0x1076B60
+  size: 0xC200
+
+pokemon_models_098:
+  symbol: pokemon_models_098
+  type: STADIUM:PERS_SZP
+  offset: 0x1082D60
+  size: 0x106D0
+
+pokemon_models_099:
+  symbol: pokemon_models_099
+  type: STADIUM:PERS_SZP
+  offset: 0x1093430
+  size: 0x5C60
+
+pokemon_models_100:
+  symbol: pokemon_models_100
+  type: STADIUM:PERS_SZP
+  offset: 0x1099090
+  size: 0x94A0
+
+pokemon_models_101:
+  symbol: pokemon_models_101
+  type: STADIUM:PERS_SZP
+  offset: 0x10A2530
+  size: 0xD120
+
+pokemon_models_102:
+  symbol: pokemon_models_102
+  type: STADIUM:PERS_SZP
+  offset: 0x10AF650
+  size: 0x276E0
+
+pokemon_models_103:
+  symbol: pokemon_models_103
+  type: STADIUM:PERS_SZP
+  offset: 0x10D6D30
+  size: 0x108A0
+
+pokemon_models_104:
+  symbol: pokemon_models_104
+  type: STADIUM:PERS_SZP
+  offset: 0x10E75D0
+  size: 0xF060
+
+pokemon_models_105:
+  symbol: pokemon_models_105
+  type: STADIUM:PERS_SZP
+  offset: 0x10F6630
+  size: 0x14240
+
+pokemon_models_106:
+  symbol: pokemon_models_106
+  type: STADIUM:PERS_SZP
+  offset: 0x110A870
+  size: 0xD840
+
+pokemon_models_107:
+  symbol: pokemon_models_107
+  type: STADIUM:PERS_SZP
+  offset: 0x11180B0
+  size: 0x1A100
+
+pokemon_models_108:
+  symbol: pokemon_models_108
+  type: STADIUM:PERS_SZP
+  offset: 0x11321B0
+  size: 0xA410
+
+pokemon_models_109:
+  symbol: pokemon_models_109
+  type: STADIUM:PERS_SZP
+  offset: 0x113C5C0
+  size: 0xEC00
+
+pokemon_models_110:
+  symbol: pokemon_models_110
+  type: STADIUM:PERS_SZP
+  offset: 0x114B1C0
+  size: 0x12960
+
+pokemon_models_111:
+  symbol: pokemon_models_111
+  type: STADIUM:PERS_SZP
+  offset: 0x115DB20
+  size: 0x12F00
+
+pokemon_models_112:
+  symbol: pokemon_models_112
+  type: STADIUM:PERS_SZP
+  offset: 0x1170A20
+  size: 0x17970
+
+pokemon_models_113:
+  symbol: pokemon_models_113
+  type: STADIUM:PERS_SZP
+  offset: 0x1188390
+  size: 0x23970
+
+pokemon_models_114:
+  symbol: pokemon_models_114
+  type: STADIUM:PERS_SZP
+  offset: 0x11ABD00
+  size: 0x250B0
+
+pokemon_models_115:
+  symbol: pokemon_models_115
+  type: STADIUM:PERS_SZP
+  offset: 0x11D0DB0
+  size: 0x8620
+
+pokemon_models_116:
+  symbol: pokemon_models_116
+  type: STADIUM:PERS_SZP
+  offset: 0x11D93D0
+  size: 0x8BF0
+
+pokemon_models_117:
+  symbol: pokemon_models_117
+  type: STADIUM:PERS_SZP
+  offset: 0x11E1FC0
+  size: 0xE010
+
+pokemon_models_118:
+  symbol: pokemon_models_118
+  type: STADIUM:PERS_SZP
+  offset: 0x11EFFD0
+  size: 0xD2F0
+
+pokemon_models_119:
+  symbol: pokemon_models_119
+  type: STADIUM:PERS_SZP
+  offset: 0x11FD2C0
+  size: 0x9140
+
+pokemon_models_120:
+  symbol: pokemon_models_120
+  type: STADIUM:RAW
+  offset: 0x1206400
+  size: 0x13A30
+
+pokemon_models_121:
+  symbol: pokemon_models_121
+  type: STADIUM:PERS_SZP
+  offset: 0x1219E30
+  size: 0x1BFA0
+
+pokemon_models_122:
+  symbol: pokemon_models_122
+  type: STADIUM:PERS_SZP
+  offset: 0x1235DD0
+  size: 0xF720
+
+pokemon_models_123:
+  symbol: pokemon_models_123
+  type: STADIUM:PERS_SZP
+  offset: 0x12454F0
+  size: 0x1CF20
+
+pokemon_models_124:
+  symbol: pokemon_models_124
+  type: STADIUM:PERS_SZP
+  offset: 0x1262410
+  size: 0x18970
+
+pokemon_models_125:
+  symbol: pokemon_models_125
+  type: STADIUM:PERS_SZP
+  offset: 0x127AD80
+  size: 0x24460
+
+pokemon_models_126:
+  symbol: pokemon_models_126
+  type: STADIUM:PERS_SZP
+  offset: 0x129F1E0
+  size: 0x14920
+
+pokemon_models_127:
+  symbol: pokemon_models_127
+  type: STADIUM:PERS_SZP
+  offset: 0x12B3B00
+  size: 0x252C0
+
+pokemon_models_128:
+  symbol: pokemon_models_128
+  type: STADIUM:PERS_SZP
+  offset: 0x12D8DC0
+  size: 0x10040
+
+pokemon_models_129:
+  symbol: pokemon_models_129
+  type: STADIUM:PERS_SZP
+  offset: 0x12E8E00
+  size: 0x16280
+
+pokemon_models_130:
+  symbol: pokemon_models_130
+  type: STADIUM:PERS_SZP
+  offset: 0x12FF080
+  size: 0x16960
+
+pokemon_models_131:
+  symbol: pokemon_models_131
+  type: STADIUM:PERS_SZP
+  offset: 0x13159E0
+  size: 0xECD0
+
+pokemon_models_132:
+  symbol: pokemon_models_132
+  type: STADIUM:PERS_SZP
+  offset: 0x13246B0
+  size: 0x197C0
+
+pokemon_models_133:
+  symbol: pokemon_models_133
+  type: STADIUM:PERS_SZP
+  offset: 0x133DE70
+  size: 0x19D50
+
+pokemon_models_134:
+  symbol: pokemon_models_134
+  type: STADIUM:PERS_SZP
+  offset: 0x1357BC0
+  size: 0x1BA80
+
+pokemon_models_135:
+  symbol: pokemon_models_135
+  type: STADIUM:PERS_SZP
+  offset: 0x1373640
+  size: 0x1C380
+
+pokemon_models_136:
+  symbol: pokemon_models_136
+  type: STADIUM:PERS_SZP
+  offset: 0x138F9C0
+  size: 0x3EF0
+
+pokemon_models_137:
+  symbol: pokemon_models_137
+  type: STADIUM:PERS_SZP
+  offset: 0x13938B0
+  size: 0x8630
+
+pokemon_models_138:
+  symbol: pokemon_models_138
+  type: STADIUM:PERS_SZP
+  offset: 0x139BEE0
+  size: 0xEA40
+
+pokemon_models_139:
+  symbol: pokemon_models_139
+  type: STADIUM:PERS_SZP
+  offset: 0x13AA920
+  size: 0x78A0
+
+pokemon_models_140:
+  symbol: pokemon_models_140
+  type: STADIUM:PERS_SZP
+  offset: 0x13B21C0
+  size: 0xE530
+
+pokemon_models_141:
+  symbol: pokemon_models_141
+  type: STADIUM:PERS_SZP
+  offset: 0x13C06F0
+  size: 0x1A8C0
+
+pokemon_models_142:
+  symbol: pokemon_models_142
+  type: STADIUM:PERS_SZP
+  offset: 0x13DAFB0
+  size: 0x179B0
+
+pokemon_models_143:
+  symbol: pokemon_models_143
+  type: STADIUM:PERS_SZP
+  offset: 0x13F2960
+  size: 0x1BAD0
+
+pokemon_models_144:
+  symbol: pokemon_models_144
+  type: STADIUM:PERS_SZP
+  offset: 0x140E430
+  size: 0x122E0
+
+pokemon_models_145:
+  symbol: pokemon_models_145
+  type: STADIUM:PERS_SZP
+  offset: 0x1420710
+  size: 0x1EAB0
+
+pokemon_models_146:
+  symbol: pokemon_models_146
+  type: STADIUM:PERS_SZP
+  offset: 0x143F1C0
+  size: 0xAA70
+
+pokemon_models_147:
+  symbol: pokemon_models_147
+  type: STADIUM:PERS_SZP
+  offset: 0x1449C30
+  size: 0xF1C0
+
+pokemon_models_148:
+  symbol: pokemon_models_148
+  type: STADIUM:PERS_SZP
+  offset: 0x1458DF0
+  size: 0x161D0
+
+pokemon_models_149:
+  symbol: pokemon_models_149
+  type: STADIUM:PERS_SZP
+  offset: 0x146EFC0
+  size: 0x207B0
+
+pokemon_models_150:
+  symbol: pokemon_models_150
+  type: STADIUM:PERS_SZP
+  offset: 0x148F770
+  size: 0x15A50
+
+pokemon_models_151:
+  symbol: pokemon_models_151
+  type: STADIUM:PERS_SZP
+  offset: 0x14A51C0
+  size: 0x5180
+
+pokemon_models_152:
+  symbol: pokemon_models_152
+  type: STADIUM:PERS_SZP
+  offset: 0x14AA340
+  size: 0x1EF40
+
+pokemon_models_153:
+  symbol: pokemon_models_153
+  type: STADIUM:PERS_SZP
+  offset: 0x14C9280
+  size: 0x1B90
+
+pokemon_models_154:
+  symbol: pokemon_models_154
+  type: STADIUM:PERS_SZP
+  offset: 0x14CAE10
+  size: 0x3230
+
+pokemon_models_155:
+  symbol: pokemon_models_155
+  type: STADIUM:PERS_SZP
+  offset: 0x14CE040
+  size: 0x890
+
+pokemon_models_156:
+  symbol: pokemon_models_156
+  type: STADIUM:PERS_SZP
+  offset: 0x14CE8D0
+  size: 0x1580
+
+pokemon_models_157:
+  symbol: pokemon_models_157
+  type: STADIUM:PERS_SZP
+  offset: 0x14CFE50
+  size: 0x3340
+
+pokemon_models_158:
+  symbol: pokemon_models_158
+  type: STADIUM:PERS_SZP
+  offset: 0x14D3190
+  size: 0x3E60
+
+pokemon_models_159:
+  symbol: pokemon_models_159
+  type: STADIUM:PERS_SZP
+  offset: 0x14D6FF0
+  size: 0xA9C0
+
+pokemon_models_160:
+  symbol: pokemon_models_160
+  type: STADIUM:PERS_SZP
+  offset: 0x14E19B0
+  size: 0x7410
+
+pokemon_models_161:
+  symbol: pokemon_models_161
+  type: STADIUM:PERS_SZP
+  offset: 0x14E8DC0
+  size: 0x12A0
+
+pokemon_models_162:
+  symbol: pokemon_models_162
+  type: STADIUM:PERS_SZP
+  offset: 0x14EA060
+  size: 0xCF0
+
+pokemon_models_163:
+  symbol: pokemon_models_163
+  type: STADIUM:PERS_SZP
+  offset: 0x14EAD50
+  size: 0x2850
+
+pokemon_models_164:
+  symbol: pokemon_models_164
+  type: STADIUM:PERS_SZP
+  offset: 0x14ED5A0
+  size: 0x36F0
+
+pokemon_models_165:
+  symbol: pokemon_models_165
+  type: STADIUM:PERS_SZP
+  offset: 0x14F0C90
+  size: 0x3440
+
+pokemon_models_166:
+  symbol: pokemon_models_166
+  type: STADIUM:PERS_SZP
+  offset: 0x14F40D0
+  size: 0x3AD0
+
+pokemon_models_167:
+  symbol: pokemon_models_167
+  type: STADIUM:PERS_SZP
+  offset: 0x14F7BA0
+  size: 0x4C80
+
+pokemon_models_168:
+  symbol: pokemon_models_168
+  type: STADIUM:PERS_SZP
+  offset: 0x14FC820
+  size: 0x4F80
+
+pokemon_models_169:
+  symbol: pokemon_models_169
+  type: STADIUM:PERS_SZP
+  offset: 0x15017A0
+  size: 0x4CE0
+
+pokemon_models_170:
+  symbol: pokemon_models_170
+  type: STADIUM:PERS_SZP
+  offset: 0x1506480
+  size: 0xCD0
+
+pokemon_models_171:
+  symbol: pokemon_models_171
+  type: STADIUM:PERS_SZP
+  offset: 0x1507150
+  size: 0x880
+
+pokemon_models_172:
+  symbol: pokemon_models_172
+  type: STADIUM:PERS_SZP
+  offset: 0x15079D0
+  size: 0x7D80
+
+pokemon_models_173:
+  symbol: pokemon_models_173
+  type: STADIUM:PERS_SZP
+  offset: 0x150F750
+  size: 0x25E0
+
+pokemon_models_174:
+  symbol: pokemon_models_174
+  type: STADIUM:PERS_SZP
+  offset: 0x1511D30
+  size: 0x8050
+
+pokemon_models_175:
+  symbol: pokemon_models_175
+  type: STADIUM:PERS_SZP
+  offset: 0x1519D80
+  size: 0x4F0
+
+pokemon_models_176:
+  symbol: pokemon_models_176
+  type: STADIUM:PERS_SZP
+  offset: 0x151A270
+  size: 0x7370
+
+pokemon_models_177:
+  symbol: pokemon_models_177
+  type: STADIUM:PERS_SZP
+  offset: 0x15215E0
+  size: 0x7320
+
+pokemon_models_178:
+  symbol: pokemon_models_178
+  type: STADIUM:PERS_SZP
+  offset: 0x1528900
+  size: 0x22E0
+
+pokemon_models_179:
+  symbol: pokemon_models_179
+  type: STADIUM:PERS_SZP
+  offset: 0x152ABE0
+  size: 0xAA0
+
+pokemon_models_180:
+  symbol: pokemon_models_180
+  type: STADIUM:PERS_SZP
+  offset: 0x152B680
+  size: 0x720
+
+pokemon_models_181:
+  symbol: pokemon_models_181
+  type: STADIUM:PERS_SZP
+  offset: 0x152BDA0
+  size: 0x2FD0
+
+pokemon_models_182:
+  symbol: pokemon_models_182
+  type: STADIUM:PERS_SZP
+  offset: 0x152ED70
+  size: 0xEC0
+
+pokemon_models_183:
+  symbol: pokemon_models_183
+  type: STADIUM:PERS_SZP
+  offset: 0x152FC30
+  size: 0x262A0
+
+pokemon_models_184:
+  symbol: pokemon_models_184
+  type: STADIUM:PERS_SZP
+  offset: 0x1555ED0
+  size: 0x880
+
+pokemon_models_185:
+  symbol: pokemon_models_185
+  type: STADIUM:PERS_SZP
+  offset: 0x1556750
+  size: 0x880
+
+pokemon_models_186:
+  symbol: pokemon_models_186
+  type: STADIUM:PERS_SZP
+  offset: 0x1556FD0
+  size: 0x880
+
+pokemon_models_187:
+  symbol: pokemon_models_187
+  type: STADIUM:PERS_SZP
+  offset: 0x1557850
+  size: 0x880
+
+pokemon_models_188:
+  symbol: pokemon_models_188
+  type: STADIUM:PERS_SZP
+  offset: 0x15580D0
+  size: 0x880
+
+pokemon_models_189:
+  symbol: pokemon_models_189
+  type: STADIUM:PERS_SZP
+  offset: 0x1558950
+  size: 0x880
+
+pokemon_models_190:
+  symbol: pokemon_models_190
+  type: STADIUM:PERS_SZP
+  offset: 0x15591D0
+  size: 0x880
+
+pokemon_models_191:
+  symbol: pokemon_models_191
+  type: STADIUM:PERS_SZP
+  offset: 0x1559A50
+  size: 0x880
+
+pokemon_models_192:
+  symbol: pokemon_models_192
+  type: STADIUM:PERS_SZP
+  offset: 0x155A2D0
+  size: 0x880
+
+pokemon_models_193:
+  symbol: pokemon_models_193
+  type: STADIUM:PERS_SZP
+  offset: 0x155AB50
+  size: 0x880
+
+pokemon_models_194:
+  symbol: pokemon_models_194
+  type: STADIUM:PERS_SZP
+  offset: 0x155B3D0
+  size: 0x1F80
+
+pokemon_models_195:
+  symbol: pokemon_models_195
+  type: STADIUM:PERS_SZP
+  offset: 0x155D350
+  size: 0xEC20
+
+pokemon_models_196:
+  symbol: pokemon_models_196
+  type: STADIUM:PERS_SZP
+  offset: 0x156BF70
+  size: 0x8B80
+
+pokemon_models_197:
+  symbol: pokemon_models_197
+  type: STADIUM:PERS_SZP
+  offset: 0x1574AF0
+  size: 0x3BE0
+
+pokemon_models_198:
+  symbol: pokemon_models_198
+  type: STADIUM:PERS_SZP
+  offset: 0x15786D0
+  size: 0x1B70
+
+pokemon_models_199:
+  symbol: pokemon_models_199
+  type: STADIUM:PERS_SZP
+  offset: 0x157A240
+  size: 0x13C0
+
+pokemon_models_200:
+  symbol: pokemon_models_200
+  type: STADIUM:PERS_SZP
+  offset: 0x157B600
+  size: 0x4880
+
+pokemon_models_201:
+  symbol: pokemon_models_201
+  type: STADIUM:PERS_SZP
+  offset: 0x157FE80
+  size: 0x9A0
+
+pokemon_models_202:
+  symbol: pokemon_models_202
+  type: STADIUM:PERS_SZP
+  offset: 0x1580820
+  size: 0xA20
+
+pokemon_models_203:
+  symbol: pokemon_models_203
+  type: STADIUM:PERS_SZP
+  offset: 0x1581240
+  size: 0xA30
+
+pokemon_models_204:
+  symbol: pokemon_models_204
+  type: STADIUM:PERS_SZP
+  offset: 0x1581C70
+  size: 0x9A0
+
+pokemon_models_205:
+  symbol: pokemon_models_205
+  type: STADIUM:PERS_SZP
+  offset: 0x1582610
+  size: 0x2BA0
+
+pokemon_models_206:
+  symbol: pokemon_models_206
+  type: STADIUM:PERS_SZP
+  offset: 0x15851B0
+  size: 0x2BE0
+
+pokemon_models_207:
+  symbol: pokemon_models_207
+  type: STADIUM:PERS_SZP
+  offset: 0x1587D90
+  size: 0x2BE0
+
+pokemon_models_208:
+  symbol: pokemon_models_208
+  type: STADIUM:PERS_SZP
+  offset: 0x158A970
+  size: 0x2C10
+
+pokemon_models_209:
+  symbol: pokemon_models_209
+  type: STADIUM:PERS_SZP
+  offset: 0x158D580
+  size: 0x460
+
+pokemon_models_210:
+  symbol: pokemon_models_210
+  type: STADIUM:PERS_SZP
+  offset: 0x158D9E0
+  size: 0x54E0
+
+pokemon_models_211:
+  symbol: pokemon_models_211
+  type: STADIUM:PERS_SZP
+  offset: 0x1592EC0
+  size: 0x4180
+
+pokemon_models_212:
+  symbol: pokemon_models_212
+  type: STADIUM:PERS_SZP
+  offset: 0x1597040
+  size: 0x4250
+
+pokemon_models_213:
+  symbol: pokemon_models_213
+  type: STADIUM:PERS_SZP
+  offset: 0x159B290
+  size: 0x89B0
+
+pokemon_models_214:
+  symbol: pokemon_models_214
+  type: STADIUM:PERS_SZP
+  offset: 0x15A3C40
+  size: 0x17B70
+

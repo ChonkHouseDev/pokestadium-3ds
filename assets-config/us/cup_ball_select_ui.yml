@@ -1,0 +1,6 @@
+cup_ball_select_ui:
+  symbol: cup_ball_select_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x5FFC30
+  size: 0x134E0
+

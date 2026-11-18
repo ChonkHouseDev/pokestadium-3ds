@@ -1,0 +1,19 @@
+# Never publish anything from the game
+*.z64
+*.n64
+*.v64
+*.o2r
+*.sav
+*.fla
+*.gb
+*.gbc
+# Builds are published only as patches, and patches only on Releases
+*.cia
+*.3dsx
+*.elf
+*.bps
+build/
+torch.hash.yml
+log.txt
+__pycache__/
+*.pyc

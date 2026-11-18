@@ -1,0 +1,6 @@
+battle_ui:
+  symbol: battle_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x6E2FC0
+  size: 0x5950
+

@@ -1,0 +1,6 @@
+n64_logo_texture:
+  symbol: n64_logo_texture
+  type: STADIUM:PERS_SZP
+  offset: 0x3B96B0
+  size: 0xAE0
+

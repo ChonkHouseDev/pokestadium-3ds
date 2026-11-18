@@ -1,0 +1,6 @@
+menu_select_ui:
+  symbol: menu_select_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x4EB0C0
+  size: 0x195F0
+

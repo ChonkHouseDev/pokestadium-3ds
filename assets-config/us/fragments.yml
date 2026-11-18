@@ -1,0 +1,60 @@
+fragments_1_fragment1_yay0_0:
+  symbol: fragments_1_fragment1_yay0_0
+  type: STADIUM:RAW
+  offset: 0xADC80
+  size: 0x46CA0
+
+fragments_1_fragment1_yay0_1:
+  symbol: fragments_1_fragment1_yay0_1
+  type: STADIUM:RAW
+  offset: 0xF4920
+  size: 0xB30
+
+fragments_1_fragment1_yay0_2:
+  symbol: fragments_1_fragment1_yay0_2
+  type: STADIUM:RAW
+  offset: 0xF5450
+  size: 0x89F0
+
+fragments_1_fragment1_yay0_3:
+  symbol: fragments_1_fragment1_yay0_3
+  type: STADIUM:RAW
+  offset: 0xFDE40
+  size: 0x4D60
+
+fragments_1_fragment1_yay0_4:
+  symbol: fragments_1_fragment1_yay0_4
+  type: STADIUM:RAW
+  offset: 0x102BA0
+  size: 0x5400
+
+fragments_6_fragment6_misc:
+  symbol: fragments_6_fragment6_misc
+  type: STADIUM:RAW
+  offset: 0x124570
+  size: 0x3360
+
+fragments_29_fragment29_unk_bin_1:
+  symbol: fragments_29_fragment29_unk_bin_1
+  type: STADIUM:PERS_SZP
+  offset: 0x23D500
+  size: 0x2660
+
+fragments_29_fragment29_unk_bin_2:
+  symbol: fragments_29_fragment29_unk_bin_2
+  type: STADIUM:RAW
+  offset: 0x23FB60
+  size: 0xF8D0
+
+fragments_29_fragment29_unk_bin_3:
+  symbol: fragments_29_fragment29_unk_bin_3
+  type: STADIUM:RAW
+  offset: 0x24F430
+  size: 0x5E00
+
+fragments_33_fragment33_unk_bin_1:
+  symbol: fragments_33_fragment33_unk_bin_1
+  type: STADIUM:RAW
+  offset: 0x25F440
+  size: 0x2B30
+

@@ -1,0 +1,6 @@
+bootcode_font:
+  symbol: bootcode_font
+  type: STADIUM:RAW
+  offset: 0xB70
+  size: 0x490
+

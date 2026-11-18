@@ -1,0 +1,6 @@
+rental_rules_ui:
+  symbol: rental_rules_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x66F540
+  size: 0x840
+

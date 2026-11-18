@@ -1,0 +1,6 @@
+order_select_ui:
+  symbol: order_select_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x5F92A0
+  size: 0x6990
+

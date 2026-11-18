@@ -1,0 +1,6 @@
+snap_select_ui:
+  symbol: snap_select_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x6AE1D0
+  size: 0x2DE0
+

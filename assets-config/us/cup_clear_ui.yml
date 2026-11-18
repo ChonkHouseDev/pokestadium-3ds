@@ -1,0 +1,6 @@
+cup_clear_ui:
+  symbol: cup_clear_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x6B0FB0
+  size: 0x3F50
+

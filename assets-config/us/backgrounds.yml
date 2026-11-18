@@ -1,0 +1,132 @@
+backgrounds_header:
+  symbol: backgrounds_header
+  type: STADIUM:RAW
+  offset: 0x3CB130
+  size: 0x160
+
+backgrounds_000:
+  symbol: backgrounds_000
+  type: STADIUM:RAW
+  offset: 0x3CB290
+  size: 0xA210
+
+backgrounds_001:
+  symbol: backgrounds_001
+  type: STADIUM:RAW
+  offset: 0x3D54A0
+  size: 0x7800
+
+backgrounds_002:
+  symbol: backgrounds_002
+  type: STADIUM:RAW
+  offset: 0x3DCCA0
+  size: 0x6950
+
+backgrounds_003:
+  symbol: backgrounds_003
+  type: STADIUM:RAW
+  offset: 0x3E35F0
+  size: 0x7470
+
+backgrounds_004:
+  symbol: backgrounds_004
+  type: STADIUM:RAW
+  offset: 0x3EAA60
+  size: 0xB970
+
+backgrounds_005:
+  symbol: backgrounds_005
+  type: STADIUM:RAW
+  offset: 0x3F63D0
+  size: 0x1E00
+
+backgrounds_006:
+  symbol: backgrounds_006
+  type: STADIUM:RAW
+  offset: 0x3F81D0
+  size: 0x4990
+
+backgrounds_007:
+  symbol: backgrounds_007
+  type: STADIUM:RAW
+  offset: 0x3FCB60
+  size: 0x7FE0
+
+backgrounds_008:
+  symbol: backgrounds_008
+  type: STADIUM:RAW
+  offset: 0x404B40
+  size: 0x7660
+
+backgrounds_009:
+  symbol: backgrounds_009
+  type: STADIUM:RAW
+  offset: 0x40C1A0
+  size: 0x6B30
+
+backgrounds_010:
+  symbol: backgrounds_010
+  type: STADIUM:RAW
+  offset: 0x412CD0
+  size: 0x6D10
+
+backgrounds_011:
+  symbol: backgrounds_011
+  type: STADIUM:RAW
+  offset: 0x4199E0
+  size: 0x74D0
+
+backgrounds_012:
+  symbol: backgrounds_012
+  type: STADIUM:RAW
+  offset: 0x420EB0
+  size: 0x6910
+
+backgrounds_013:
+  symbol: backgrounds_013
+  type: STADIUM:RAW
+  offset: 0x4277C0
+  size: 0x5D70
+
+backgrounds_014:
+  symbol: backgrounds_014
+  type: STADIUM:RAW
+  offset: 0x42D530
+  size: 0x4CB0
+
+backgrounds_015:
+  symbol: backgrounds_015
+  type: STADIUM:RAW
+  offset: 0x4321E0
+  size: 0x49A0
+
+backgrounds_016:
+  symbol: backgrounds_016
+  type: STADIUM:RAW
+  offset: 0x436B80
+  size: 0x6540
+
+backgrounds_017:
+  symbol: backgrounds_017
+  type: STADIUM:RAW
+  offset: 0x43D0C0
+  size: 0xA270
+
+backgrounds_018:
+  symbol: backgrounds_018
+  type: STADIUM:RAW
+  offset: 0x447330
+  size: 0x7750
+
+backgrounds_019:
+  symbol: backgrounds_019
+  type: STADIUM:RAW
+  offset: 0x44EA80
+  size: 0x77F0
+
+backgrounds_020:
+  symbol: backgrounds_020
+  type: STADIUM:RAW
+  offset: 0x456270
+  size: 0x5310
+

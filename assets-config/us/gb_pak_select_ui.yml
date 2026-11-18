@@ -1,0 +1,6 @@
+gb_pak_select_ui:
+  symbol: gb_pak_select_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x6B4F00
+  size: 0xCBB0
+

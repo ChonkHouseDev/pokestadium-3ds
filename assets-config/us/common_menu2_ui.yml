@@ -1,0 +1,6 @@
+common_menu2_ui:
+  symbol: common_menu2_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x4BE810
+  size: 0x12B20
+

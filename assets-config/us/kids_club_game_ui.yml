@@ -1,0 +1,6 @@
+kids_club_game_ui:
+  symbol: kids_club_game_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x675FA0
+  size: 0x203B0
+
