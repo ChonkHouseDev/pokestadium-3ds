@@ -248,6 +248,25 @@ void func_84310334(s32 arg0, s32 arg1, s32 arg2, s32 arg3, Color_RGB8* arg4, Col
 void func_84310360(void) {
 }
 
+#ifdef PORT
+// PORT: al deslizarse hacia afuera el panel del jugador (antes de un ataque) la barra queda con X negativa. Las
+// coordenadas del rectangulo no tienen signo: en el N64 ese rectangulo simplemente no se dibuja; aqui salia como una
+// linea que cruzaba la pantalla. Se recorta por la izquierda (y no se dibuja lo que queda fuera).
+#define PS_HP_RECT(x0, x1, dsdx)                                                                                     \
+    {                                                                                                                \
+        s32 psX0 = (x0), psX1 = (x1), psS = 0;                                                                       \
+        if (psX0 < 0) { psS = ((-psX0) * (dsdx)) >> 5; psX0 = 0; }                                                   \
+        if (psX1 > psX0) {                                                                                           \
+            gSPTextureRectangle(gDisplayListHead++, psX0 << 2, arg1 << 2, psX1 << 2, (arg1 + 5) << 2,               \
+                                G_TX_RENDERTILE, psS, 0, (dsdx), 0x0400);                                            \
+        }                                                                                                            \
+    }
+#else
+#define PS_HP_RECT(x0, x1, dsdx)                                                                                     \
+    gSPTextureRectangle(gDisplayListHead++, (x0) << 2, arg1 << 2, (x1) << 2, (arg1 + 5) << 2, G_TX_RENDERTILE, 0, 0,  \
+                        (dsdx), 0x0400)
+#endif
+
 void func_84310368(s32 arg0, s32 arg1, f32 arg2, s32 arg3) {
     u8* spCC;
     s32 temp_ft2 = ((arg3 - arg2) * 48.0f) / arg3;
@@ -283,27 +302,23 @@ void func_84310368(s32 arg0, s32 arg1, f32 arg2, s32 arg3) {
     gDPLoadTextureBlock(gDisplayListHead++, D_1003DB0, G_IM_FMT_RGBA, G_IM_SIZ_16b, 16, 5, 0,
                         G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD,
                         G_TX_NOLOD);
-    gSPTextureRectangle(gDisplayListHead++, arg0 << 2, arg1 << 2, (arg0 + 0x10) << 2, (arg1 + 5) << 2, G_TX_RENDERTILE,
-                        0, 0, 0x0400, 0x0400);
+    PS_HP_RECT(arg0, (arg0 + 0x10), 0x0400);
 
     gDPLoadTextureBlock(gDisplayListHead++, D_1003E50, G_IM_FMT_RGBA, G_IM_SIZ_16b, 4, 5, 0, G_TX_NOMIRROR | G_TX_CLAMP,
                         G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
-    gSPTextureRectangle(gDisplayListHead++, (arg0 + 0x40) << 2, arg1 << 2, (arg0 + 0x41) << 2, (arg1 + 5) << 2,
-                        G_TX_RENDERTILE, 0, 0, 0x0400, 0x0400);
+    PS_HP_RECT((arg0 + 0x40), (arg0 + 0x41), 0x0400);
 
     if (sp14 > 0) {
         gDPLoadTextureBlock(gDisplayListHead++, spCC, G_IM_FMT_RGBA, G_IM_SIZ_16b, 4, 5, 0, G_TX_NOMIRROR | G_TX_CLAMP,
                             G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
-        gSPTextureRectangle(gDisplayListHead++, (arg0 + 0x10) << 2, arg1 << 2, ((arg0 + sp14) + 0x10) << 2,
-                            (arg1 + 5) << 2, G_TX_RENDERTILE, 0, 0, 0, 0x0400);
+        PS_HP_RECT((arg0 + 0x10), ((arg0 + sp14) + 0x10), 0);
     }
 
     if (temp_ft2 > 0) {
         gDPLoadTextureBlock(gDisplayListHead++, D_1003E78, G_IM_FMT_RGBA, G_IM_SIZ_16b, 4, 5, 0,
                             G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK,
                             G_TX_NOLOD, G_TX_NOLOD);
-        gSPTextureRectangle(gDisplayListHead++, ((arg0 + sp14) + 0x10) << 2, arg1 << 2,
-                            ((arg0 + sp14) + temp_ft2 + 0x10) << 2, (arg1 + 5) << 2, G_TX_RENDERTILE, 0, 0, 0, 0x0400);
+        PS_HP_RECT(((arg0 + sp14) + 0x10), ((arg0 + sp14) + temp_ft2 + 0x10), 0);
     }
 
     gSPDisplayList(gDisplayListHead++, D_8006F630);

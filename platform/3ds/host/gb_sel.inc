@@ -2,8 +2,13 @@
 // Se incluye desde gb_saves.inc. El juego publica en gPsSel (func_84802C40) el estado del jugador humano del control 1.
 // En el original cada Pokemon se elige con su boton (B, C izquierda, C arriba, A, C abajo, C derecha); aqui tocar su
 // tarjeta manda ese boton. "OK!" contesta "Yes" a "Is this OK?" y "Start over" borra lo elegido (L, o "Re-select").
+#ifndef PS_SPECIES_GEN1
+#define PS_SPECIES_GEN1
 #include "species_gen1.inc"
-struct GbSel { u32 st, cnt, have, need, cur, mon[6], picks, wait; };
+#endif
+struct GbSel { u32 st, cnt, have, need, cur, mon[6], picks, wait, mv[6], pp[6]; };
+static int sSelInfo = -1;      // ficha abierta (dejar presionada una tarjeta): sus 4 ataques
+static int sSelHold = -1, sSelHoldStep; // tarjeta que se esta dejando presionada (otro color y una barra que se llena)
 static u32 sSelTick;
 static u64 sSelTickAt;
 static bool sSelShown;
@@ -26,6 +31,7 @@ static bool gb_sel_read(GbSel* s, u64 now) {
     s->cur = intro_be(BLOB_SEL + 20);
     for (int i = 0; i < 6; i++) s->mon[i] = intro_be(BLOB_SEL + 24 + 4 * i);
     s->picks = intro_be(BLOB_SEL + 48); s->wait = intro_be(BLOB_SEL + 52);
+    for (int i = 0; i < 6; i++) { s->mv[i] = intro_be(BLOB_SEL + 64 + 4 * i); s->pp[i] = intro_be(BLOB_SEL + 88 + 4 * i); }
     return s->cnt >= 1 && s->cnt <= 6 && s->st <= 4 && s->have <= 6 && s->need >= 1 && s->need <= 6;
 }
 static int gb_sel_order(const GbSel& s, int idx) { // lugar (1..) en que se eligio ese Pokemon; 0: no elegido
@@ -49,8 +55,13 @@ static void gb_sel_draw(const GbSel& s, u64 now) {
         const int x = SEL_CARD_X(i), y = SEL_CARD_Y(i);
         if (i >= (int)s.cnt) { gb_panel(x, y, SEL_CARD_W, SEL_CARD_H, 0x0E1658, 0x34489C, 1, 150); continue; }
         const int ord = gb_sel_order(s, i), sp = (int)(s.mon[i] & 0xFF), lv = (int)((s.mon[i] >> 8) & 0xFF);
-        const bool bad = i == sSelFlash && now < sSelFlashUntil;
-        gb_panel(x, y, SEL_CARD_W, SEL_CARD_H, ord ? 0x2436A0 : 0x16227C, bad ? 0xFF5040 : ord ? 0xFFD830 : 0x6088F0, ord || bad ? 2 : 1, 240);
+        const bool bad = i == sSelFlash && now < sSelFlashUntil, hold = i == sSelHold;
+        gb_panel(x, y, SEL_CARD_W, SEL_CARD_H, hold ? 0x8C4A10 : ord ? 0x2436A0 : 0x16227C, bad ? 0xFF5040 : hold ? 0xFFA040 : ord ? 0xFFD830 : 0x6088F0, ord || bad || hold ? 2 : 1, 240);
+        if (hold) { // se llena mientras se deja presionada; llena, se abre la ficha
+            const int w = (SEL_CARD_W - 12) * (sSelHoldStep + 1) / 5;
+            gb_panel(x + 6, y + SEL_CARD_H - 9, SEL_CARD_W - 12, 5, 0x40200A, 0x40200A, 1, 255, 2);
+            gb_panel(x + 6, y + SEL_CARD_H - 9, w, 5, 0xFFA040, 0xFFA040, 1, 255, 2);
+        }
         gb_sel_mini(x + SEL_CARD_W / 2, y + 22, sp, 0);
         char nm[24];
         gb_fit(nm, sizeof nm, sp >= 1 && sp <= 151 ? kGen1Names[sp] : "?", SEL_CARD_W - 8);
@@ -81,6 +92,35 @@ static void gb_sel_draw(const GbSel& s, u64 now) {
     gb_label(82, 216, "Start over", done ? 0x9696A5 : 0xFFFFFF, kUiFontSm, true);
     gb_panel(164, 211, 148, 24, 0x101A66, 0x6088F0, 1, 225);
     gb_label(238, 216, s.st == 2 ? "Not allowed" : ask ? "Is this OK?" : done ? "Waiting..." : s.wait ? "Wait..." : "Tap in order", s.st == 2 ? 0xFF8070 : 0xDCE4FF, kUiFontSm, true);
+    if (sSelInfo >= 0 && sSelInfo < (int)s.cnt && s.st != 2) { // la ficha: sus 4 ataques, como en la batalla
+        const int i = sSelInfo, sp = (int)(s.mon[i] & 0xFF), lv = (int)((s.mon[i] >> 8) & 0xFF);
+        gb_panel(6, 30, 308, 178, 0x0E1A6E, 0xFFD830, 2, 250);
+        gb_sel_mini(26, 52, sp, 0);
+        gb_label(48, 36, sp >= 1 && sp <= 151 ? kGen1Names[sp] : "?", 0xFFFFFF, kUiFontLg);
+        snprintf(t, sizeof t, "L%d   #%d", lv, sp);
+        gb_label(48, 56, t, 0xC8D8FF);
+        gb_label(304 - gb_tw("Moves"), 40, "Moves", 0xFFD830);
+        for (int k = 0; k < 4; k++) {
+            const int x = 12 + (k & 1) * 150, y = 76 + (k >> 1) * 46;
+            const int mv = (int)((s.mv[i] >> (24 - 8 * k)) & 0xFF), pp = (int)((s.pp[i] >> (24 - 8 * k)) & 0xFF);
+            if (mv < 1 || mv > 165) { gb_panel(x, y, 146, 42, 0x1A2060, 0x40508C, 1, 200); gb_label(x + 73, y + 13, "-", 0x9696A5, kUiFontSm, true); continue; }
+            const GbTypeInfo& ty = gb_type_of_move(mv);
+            gb_panel(x, y, 146, 42, gb_shade(ty.color, 78), gb_shade(ty.color, 135), 2, 240);
+            char nm[40];
+            gb_fit(nm, sizeof nm, kMoveName[mv], 130);
+            gb_label(x + 8, y + 3, nm, 0xFFFFFF);
+            const int tw = gb_tw(ty.name) + 12;
+            gb_panel(x + 7, y + 22, tw, 15, 0xFFFFFF, 0xFFFFFF, 1, 255, 7);
+            gb_text(x + 13, y + 22, ty.name, gb_shade(ty.color, 60));
+            snprintf(t, sizeof t, "PP %d", pp);
+            gb_label(x + 139 - gb_tw(t), y + 22, t, 0xFFFFFF);
+        }
+        const bool can = s.st == 0 && !gb_sel_order(s, i);
+        gb_panel(12, 172, 140, 30, 0x2C3A9C, 0x6088F0, 1, 245);
+        gb_label(82, 179, "Back", 0xFFFFFF, kUiFontSm, true);
+        gb_panel(160, 172, 148, 30, can ? 0x189040 : 0x282C46, can ? 0xA8F4C0 : 0x6E6E82, 1, 245);
+        gb_label(234, 179, gb_sel_order(s, i) ? "Already picked" : "Pick this one", can ? 0xFFFFFF : 0x9696A5, kUiFontSm, true);
+    }
     if (s.st == 2) { // la regla no deja esa combinacion (suma de niveles): el juego espera un boton y borra lo elegido
         gb_panel(40, 84, 240, 56, 0x782424, 0xFFA096, 2, 245);
         gb_label(160, 92, "The rules don't allow this team", 0xFFFFFF, kUiFontSm, true);
@@ -129,12 +169,49 @@ static bool gb_sel_tick(u64 now) {
     static u64 sNext;
     GbSel s;
     if (!gb_sel_read(&s, now)) {
-        if (sSelShown) { sSelShown = false; sSelQn = 0; }
+        if (sSelShown) { sSelShown = false; sSelQn = 0; sSelInfo = -1; }
         return false;
     }
+    // Toque corto: igual que siempre (al soltar). Dejar presionada una tarjeta medio segundo abre su ficha con los ataques;
+    // con la ficha abierta, "Back" la cierra y "Pick this one" lo elige.
     const bool down = (hidKeysHeld() & KEY_TOUCH) != 0;
-    if (down && !sTouchWas && sSelShown) { touchPosition tp; hidTouchRead(&tp); gb_sel_tap(sSelPrev, tp.px, tp.py, now); }
+    static int sDownX, sDownY, sDownCard = -1;
+    static u64 sDownAt;
+    static bool sLongDone;
+    static int sInfoWas = -1;
+    if (down) {
+        touchPosition tp; hidTouchRead(&tp);
+        if (!sTouchWas) {
+            sDownX = tp.px; sDownY = tp.py; sDownAt = now; sLongDone = false; sDownCard = -1;
+            if (sSelInfo < 0)
+                for (int i = 0; i < (int)sSelPrev.cnt; i++)
+                    if (tp.px >= SEL_CARD_X(i) && tp.px < SEL_CARD_X(i) + SEL_CARD_W && tp.py >= SEL_CARD_Y(i) && tp.py < SEL_CARD_Y(i) + SEL_CARD_H) sDownCard = i;
+            // lo que no es una tarjeta (OK!, Start over) va al momento, como antes
+            if (sSelShown && sSelInfo < 0 && sDownCard < 0) gb_sel_tap(sSelPrev, tp.px, tp.py, now);
+        } else if (sDownCard >= 0 && !sLongDone && now - sDownAt > 268111856ull / 2) {
+            sLongDone = true; sSelInfo = sDownCard; // abrir la ficha
+        }
+    } else if (sTouchWas && sSelShown) {
+        if (sSelInfo >= 0 && !sLongDone) { // tocar dentro de la ficha
+            const int i = sSelInfo;
+            if (sDownY >= 172 && sDownY < 202 && sDownX >= 160 && sDownX < 308) { sSelInfo = -1; if (sSelPrev.st == 0 && !gb_sel_order(sSelPrev, i)) gb_sel_tap(sSelPrev, SEL_CARD_X(i) + 20, SEL_CARD_Y(i) + 20, now); }
+            else if (sDownY >= 172 && sDownY < 202 && sDownX >= 12 && sDownX < 152) sSelInfo = -1;
+        } else if (sDownCard >= 0 && !sLongDone) gb_sel_tap(sSelPrev, sDownX, sDownY, now);
+    }
     sTouchWas = down;
+    {
+        const int hold = down && sDownCard >= 0 && !sLongDone && sSelInfo < 0 ? sDownCard : -1;
+        u64 el = hold >= 0 ? now - sDownAt : 0;
+        int step = (int)(el * 10 / 268111856ull); // 0..4 en medio segundo
+        if (step > 4) step = 4;
+        sSelHold = hold; sSelHoldStep = hold >= 0 ? step : 0;
+    }
+    {   // (solo para probar en el emulador) fichaprueba.txt = 1: abre la ficha de la primera tarjeta
+        static int sT = -1;
+        if (sT < 0) sT = host_flag("fichaprueba") == 1;
+        if (sT == 1 && sSelShown && sSelPrev.st == 0) { sT = 2; sSelInfo = 0; }
+    }
+    if (sSelPrev.st != 0 && sSelPrev.st != 1 && sSelInfo >= 0 && sSelShown) sSelInfo = -1;
     {   // (solo para probar en el emulador) selprueba.txt = 1: cada segundo toca la siguiente tarjeta sin elegir (primero
         // una ya elegida, para ver el rechazo) y al final "OK!"
         static int sTest = -1;
@@ -155,9 +232,12 @@ static bool gb_sel_tick(u64 now) {
         }
     }
     const bool flash = now < sSelFlashUntil;
-    if (now < sNext && sSelShown && flash == sFlashOn) return true;
+    static int sHoldWas = -1, sHoldStepWas;
+    const bool same = sSelInfo == sInfoWas && sSelHold == sHoldWas && sSelHoldStep == sHoldStepWas;
+    if (now < sNext && sSelShown && flash == sFlashOn && same) return true;
     sNext = now + 268111856ull / 15;
-    if (sSelShown && flash == sFlashOn && memcmp(&s, &sSelPrev, sizeof s) == 0) return true;
+    if (sSelShown && flash == sFlashOn && same && memcmp(&s, &sSelPrev, sizeof s) == 0) return true;
+    sInfoWas = sSelInfo; sHoldWas = sSelHold; sHoldStepWas = sSelHoldStep;
     if (!sSelShown) { // empieza: los minis del equipo, de una vez
         u8 recs[6]; int n = 0;
         for (u32 i = 0; i < s.cnt; i++) recs[n++] = (u8)(s.mon[i] & 0xFF);

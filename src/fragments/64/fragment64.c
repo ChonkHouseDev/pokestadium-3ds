@@ -1076,7 +1076,7 @@ s32 func_84802B70(s32 arg0, unk_D_848037A0* arg1) {
 }
 
 #ifdef PORT
-u32 gPsSel[16]; /* estado de la eleccion de Pokemon para la pantalla de abajo (ver func_84802C40) */
+u32 gPsSel[32]; /* estado de la eleccion de Pokemon para la pantalla de abajo (ver func_84802C40) */
 #endif
 
 s32 func_84802C40(s32 arg0) {
@@ -1113,9 +1113,25 @@ s32 func_84802C40(s32 arg0) {
     // del control 1. [0] cuenta de vueltas, [1] estado, [2] cuantos trae, [3] elegidos, [4] cuantos pide la regla,
     // [5] cursor de "Is this OK?", [6..11] especie | nivel << 8, [12] elegidos en orden (4 bits cada uno, indice + 1)
     {
-        extern u32 gPsSel[16];
+        extern u32 gPsSel[32];
         s32 k;
         s32 j;
+
+        {   // (pruebas en el emulador) pokeprueba1.txt / pokeprueba2.txt = numero de Pokedex: todo el equipo del jugador 1
+            // y todo el del otro lado se vuelven ese Pokemon (modelo y animaciones). movprueba.txt = primer ataque del jugador.
+            extern s32 ps_flag(const char* name, s32 dflt);
+            static s32 sP[3] = { -1, -1, -1 };
+            if (sP[0] < 0) { sP[0] = ps_flag("pokeprueba1", 0); sP[1] = ps_flag("pokeprueba2", 0); sP[2] = ps_flag("movprueba", 0); }
+            for (k = 0; k < D_8480379C; k++) {
+                unk_D_848037A0* p = &D_848037A0[k];
+                const s32 sp = k == 0 ? sP[0] : sP[1];
+                if (p->unk_0018 == NULL || sp <= 0 || sp > 151 || p->unk_0017 <= 0) continue;
+                for (j = 0; j < p->unk_0017 && j < 6; j++) {
+                    p->unk_0018[j].unk_00.unk_00 = (u8)sp;
+                    if (k == 0 && sP[2] > 0 && sP[2] < 166) { p->unk_0018[j].unk_09[0] = (u8)sP[2]; p->unk_0018[j].unk_20[0] = (p->unk_0018[j].unk_20[0] & 0xC0) | 5; }
+                }
+            }
+        }
 
         for (k = 0; k < D_8480379C; k++) {
             unk_D_848037A0* p = &D_848037A0[k];
@@ -1146,6 +1162,19 @@ s32 func_84802C40(s32 arg0) {
                 }
             }
             gPsSel[12] = packed;
+            // [16..21] los 4 ataques de cada uno (el primero en el byte alto), [22..27] sus PP
+            for (j = 0; j < 6; j++) {
+                u32 mv = 0, pp = 0;
+                s32 m;
+                if (j < p->unk_0017) {
+                    for (m = 0; m < 4; m++) {
+                        mv |= (u32)p->unk_0018[j].unk_09[m] << (24 - 8 * m);
+                        pp |= (u32)(p->unk_0018[j].unk_20[m] & 0x3F) << (24 - 8 * m);
+                    }
+                }
+                gPsSel[16 + j] = mv;
+                gPsSel[22 + j] = pp;
+            }
             gPsSel[13] = (u32)arg0; // 0: la pantalla ya acepta botones
             gPsSel[0]++;
             break;

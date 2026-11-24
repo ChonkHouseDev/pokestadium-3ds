@@ -19,6 +19,7 @@ struct BoxState {
     volatile uint32_t bad, badNan;          // direcciones invalidas, uniformes NaN
     volatile uint32_t lastListTick, maxListWords;
     BoxEvent lastBad;
+    volatile uint32_t sus, lastSus, lastSusReg, lastSusVal, lastSusFrame; // cosas raras para el PICA (ver blackbox.cpp)
     volatile uint32_t nanReg, nanVal, nanMode; // ultimo uniforme NaN: registro c#, bits, modo (1 = f32)
 };
 extern BoxState gBox;

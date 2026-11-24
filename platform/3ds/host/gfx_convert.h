@@ -43,6 +43,9 @@ void GfxConvertMemEvent(uint32_t kind, uint32_t addr, uint32_t size);
 // Cache de modelos horneados (model_cache.h). Presupuesto 0 = apagada (camino de siempre)
 void GfxConvertModelCacheConfig(uint32_t budgetBytes, bool verify);
 mc::Stats GfxConvertModelCacheStats();
+mc::Stats GfxConvertModelCachePeek();
+void GfxConvertModelCacheClear();
+bool GfxConvertIsGpuTarget(const void* p);
 extern bool gGfxConvertSkin;
 extern bool gGfxConvertGpuFb;
 extern uint32_t gGfxConvertDbgDrop;

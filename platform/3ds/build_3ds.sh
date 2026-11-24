@@ -42,11 +42,27 @@ cat > "$OUT/blob_info.h" <<EOF
 #define BLOB_DEBT $(symz gPsDebtUs)u
 #define BLOB_BAT_TICK $(symz gPsBatTick)u
 #define BLOB_BAT_ON $(symz gPsBatOn)u
+#define BLOB_GAME_STATE $(symz gCurrentGameState)u
+#define BLOB_PROF_PORTRAIT $(symz gPsProfPortrait)u
+#define BLOB_PROF_NAME $(symz gPsProfName)u
+#define BLOB_LANG_GEN $(symz gPsLangGen)u
+#define BLOB_JP_ON $(symz gPsJpSceneOn)u
+#define BLOB_JP_SFX $(symz gPsJpSnd)u
 #define BLOB_ATK_START $(symz gPsAtkStart)u
 #define BLOB_HPBAR $(symz gPsHpBar)u
 #define BLOB_FIBERS $(symz sFibers)u
 #define BLOB_SEL $(symz gPsSel)u
+#define BLOB_DYNFREE $(symz gPsDynFree)u
+#define BLOB_DYNSIZE $(symz gPsDynSize)u
 #define BLOB_SND $(symz gPsSnd)u
+#define BLOB_NOT_SCREEN $(symz gPsNotScreenFb)u
+#define BLOB_AE540 $(symz D_800AE540)u
+#define BLOB_HOUR $(symz gPsHour3DS)u
+#define BLOB_TIMEMODE $(symz gPsTimeMode)u
+#define BLOB_CHAL_END $(symz gPsChalEnd)u
+#define BLOB_BGTEST $(symz gPsBgTest3DS)u
+#define BLOB_JUMBO $(symz gPsJumboTex)u
+#define BLOB_JUMBO_ON $(symz gPsJumboOn)u
 EOF
 (cd "$OUT" && cp blob/blob.bin blob.bin && bin2s -H blob_bin.h blob.bin > blob_bin.s)
 
@@ -60,20 +76,35 @@ HOSTDEFS="-DPS_BUILD_REV=\"$REV\""
 NAME=pokestadium; TITLE="Pokemon Stadium"
 [ -n "${PS_HANG_TEST:-}" ] && HOSTDEFS="$HOSTDEFS -DPS_HANG_TEST=1"
 # PS_BLACKBOX=1: caja negra (pokestadium_caja.3dsx): validacion de todo lo que va al GPU y estado en la pantalla de abajo
-BOXOBJ=""; BOXLD=""
+BOXOBJ=""; BOXLD="-Wl,--wrap=C3D_UpdateUniforms,--wrap=C3D_DrawArrays,--wrap=C3D_DrawElements" # red de seguridad: ningun uniforme llega al GPU con NaN o infinito (host_3ds.cpp)
+# PS_LOGS=1: con registro (log.txt, terminal de 3dslink). Sin eso el juego no registra nada.
+if [ -n "${PS_LOGS:-}" ]; then HOSTDEFS="$HOSTDEFS -DPS_LOGS=1"; fi
 if [ -n "${PS_BLACKBOX:-}" ]; then
   HOSTDEFS="$HOSTDEFS -DPS_BLACKBOX=1"; BOXOBJ="$OUT/blackbox.o"
-  BOXLD="-Wl,--wrap=GX_ProcessCommandList,--wrap=GX_DisplayTransfer,--wrap=GX_TextureCopy,--wrap=GX_MemoryFill"
+  # PS_BOXLITE=1: solo la captura del GPU colgado (sin migas ni pantalla de diagnostico): corre como el juego normal
+  [ -n "${PS_BOXLITE:-}" ] && HOSTDEFS="$HOSTDEFS -DPS_BOXLITE=1"
+  BOXLD="$BOXLD -Wl,--wrap=GX_ProcessCommandList,--wrap=GX_DisplayTransfer,--wrap=GX_TextureCopy,--wrap=GX_MemoryFill,--wrap=GX_BindQueue"
 fi
 if [ -n "${PS_MEMPROF:-}" ]; then HOSTDEFS="$HOSTDEFS -DPS_MEMPROF=1"; BOXLD="$BOXLD -Wl,--wrap=memset,--wrap=memcpy,--wrap=memcmp"; fi
 [ -n "${PS_F2_OFF:-}" ] && HOSTDEFS="$HOSTDEFS -DPS_F2_OFF=1" # pruebas: ruta F1 sin presionar L
 if [ -n "${PS_DIAG:-}" ]; then HOSTDEFS="$HOSTDEFS -DPS_DIAG=1"; NAME=pokestadium_diag; TITLE="Pokemon Stadium (diagnostico)"; fi
-if [ -n "${PS_BLACKBOX:-}" ]; then NAME=pokestadium_caja; TITLE="Pokemon Stadium (caja negra)"; fi
+if [ -n "${PS_BLACKBOX:-}" ] && [ -z "${PS_BOXLITE:-}" ]; then NAME=pokestadium_caja; TITLE="Pokemon Stadium (caja negra)"; fi
 arm-none-eabi-g++ $CXXFLAGS $HOSTDEFS $INC -c "$ROOT/platform/3ds/host/host_3ds.cpp" -o "$OUT/host_3ds.o"
 arm-none-eabi-g++ $CXXFLAGS $INC -c "$ROOT/platform/3ds/host/gfx_convert.cpp" -o "$OUT/gfx_convert.o"
+mkdir -p "$OUT/migas"
+if [ -n "${PS_BLACKBOX:-}" ] && [ -z "${PS_BOXLITE:-}" ]; then
+  python3 "$ROOT/platform/3ds/crumbs.py" "$ROOT/platform/3ds/host/model_cache.cpp" "$OUT/migas/model_cache.cpp" 4000 "$OUT/migas/n_model.inc" || exit 1
+  arm-none-eabi-g++ $CXXFLAGS $INC -I"$ROOT/platform/3ds/host" -c "$OUT/migas/model_cache.cpp" -o "$OUT/model_cache.o" || exit 1
+else
 arm-none-eabi-g++ $CXXFLAGS $INC -c "$ROOT/platform/3ds/host/model_cache.cpp" -o "$OUT/model_cache.o"
-[ -n "$BOXOBJ" ] && arm-none-eabi-g++ $CXXFLAGS $INC -c "$ROOT/platform/3ds/host/blackbox.cpp" -o "$BOXOBJ"
+fi
+[ -n "$BOXOBJ" ] && arm-none-eabi-g++ $CXXFLAGS ${PS_BOXDBG:+-DPS_BOXDBG=1} $INC -c "$ROOT/platform/3ds/host/blackbox.cpp" -o "$BOXOBJ"
+if [ -n "${PS_BLACKBOX:-}" ] && [ -z "${PS_BOXLITE:-}" ]; then
+  python3 "$ROOT/platform/3ds/crumbs.py" "$ROOT/platform/3ds/host/soft_rdp.cpp" "$OUT/migas/soft_rdp.cpp" 5000 "$OUT/migas/n_soft.inc" || exit 1
+  arm-none-eabi-g++ $CXXFLAGS $INC -I"$ROOT/platform/3ds/host" -c "$OUT/migas/soft_rdp.cpp" -o "$OUT/soft_rdp.o" || exit 1
+else
 arm-none-eabi-g++ $CXXFLAGS $INC -c "$ROOT/platform/3ds/host/soft_rdp.cpp" -o "$OUT/soft_rdp.o"
+fi
 arm-none-eabi-gcc $ARCH -c "$ROOT/platform/3ds/host/tramp.s" -o "$OUT/tramp.o"
 arm-none-eabi-gcc $ARCH -c "$OUT/blob_bin.s" -o "$OUT/blob_bin.o"
 
@@ -95,7 +126,31 @@ s = s.replace("#pragma once\n", "#pragma once\nstruct PsResidentDraw3DS;\n", 1)
 open(sys.argv[2], "w").write(s)
 PYEOF
 cmp -s "$OUT/psinc/gfx_citro3d.h.new" "$OUT/psinc/gfx_citro3d.h" && rm "$OUT/psinc/gfx_citro3d.h.new" || mv "$OUT/psinc/gfx_citro3d.h.new" "$OUT/psinc/gfx_citro3d.h"
-PSDEPS="$ROOT/platform/3ds/host/ps_hud_interp.inc $ROOT/platform/3ds/host/ps_resident.h $ROOT/platform/3ds/host/ps_resident_interp.inc $ROOT/platform/3ds/host/ps_resident_backend.inc $OUT/psinc/gfx_citro3d.h"
+# Espera de la cola del GPU al empezar el cuadro: el original se sale del proceso a los 5 s (svcExitProcess), y eso en
+# la consola se ve como congelamiento total (imagen fija, HOME sin responder, hay que apagar). Aqui a los 5 s se avisa
+# al host y se sigue esperando: el host atiende HOME mientras tanto, y si el GPU termina el juego continua.
+python3 - "$MK64_3DS/platform/3ds/include/frame_begin_3ds.hpp" "$OUT/psinc/frame_begin_3ds.hpp.new" <<'PYEOF' || exit 1
+import sys
+s = open(sys.argv[1]).read()
+a = """            Mk64StartupFailure("startup-gpu-queue-timeout-kernel-exit");
+            if (Mk64Gpu3DSFenceFailure) Mk64Gpu3DSFenceFailure("gpu-queue-timeout");
+            svcExitProcess();"""
+b = """            Mk64StartupFailure("startup-display-present-timeout-kernel-exit");
+            if (Mk64Gpu3DSFenceFailure) Mk64Gpu3DSFenceFailure("display-present-timeout");
+            svcExitProcess();"""
+if a not in s or b not in s: sys.exit("frame_begin_3ds.hpp: no encontre las salidas por tiempo")
+s = s.replace(a, "            psStalled = true; PsGpuStall3DS(1, static_cast<unsigned>(osGetTime() - started));")
+s = s.replace(b, "            psStalled = true; PsGpuStall3DS(2, static_cast<unsigned>(osGetTime() - presentStarted));")
+s = s.replace("    const uint64_t started = osGetTime();\n    while (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) {", "    bool psStalled = false;\n    const uint64_t started = osGetTime();\n    while (!C3D_FrameBegin(C3D_FRAME_NONBLOCK)) {")
+s = s.replace('    Mk64StartupStage("startup-gpu-queue-wait-returned");', '    if (psStalled) PsGpuStall3DS(0, static_cast<unsigned>(osGetTime() - started));\n    Mk64StartupStage("startup-gpu-queue-wait-returned");')
+s = s.replace("namespace mk64_3ds {", 'extern "C" void PsGpuStall3DS(int what, unsigned ms); // 1 cola del GPU, 2 presentacion, 0 ya paso\nnamespace mk64_3ds {', 1)
+s = s.replace("if (osGetTime() - started >= 5000) {", "if (osGetTime() - started >= 1500) {")
+if "started >= 1500" not in s: sys.exit("frame_begin_3ds.hpp: no encontre el limite de la cola")
+if "bool psStalled = false;" not in s or "PsGpuStall3DS(0" not in s: sys.exit("frame_begin_3ds.hpp: parche incompleto")
+open(sys.argv[2], "w").write(s)
+PYEOF
+cmp -s "$OUT/psinc/frame_begin_3ds.hpp.new" "$OUT/psinc/frame_begin_3ds.hpp" && rm "$OUT/psinc/frame_begin_3ds.hpp.new" || mv "$OUT/psinc/frame_begin_3ds.hpp.new" "$OUT/psinc/frame_begin_3ds.hpp"
+PSDEPS="$ROOT/platform/3ds/host/ps_hud_interp.inc $ROOT/platform/3ds/host/ps_resident.h $ROOT/platform/3ds/host/ps_resident_interp.inc $ROOT/platform/3ds/host/ps_resident_backend.inc $OUT/psinc/gfx_citro3d.h $OUT/psinc/frame_begin_3ds.hpp"
 newer() { local o=$1; shift; [ ! -f "$o" ] && return 0; for f in "$@"; do [ "$f" -nt "$o" ] && return 0; done; return 1; }
 INTERP_SRC="$OUT/interpreter_stadium.cpp"
 sed 's/sMk64AspectCorrection3DS = ::mk64_3ds::Fast3DAspectCorrection(/sMk64AspectCorrection3DS = 1.0f; (void)(/' \
@@ -115,12 +170,20 @@ if [ -z "${PS_NO_STATIC:-}" ]; then
   perl -0pi -e 's/return sMk64ExecStackDepth3DS != 0 && sMk64ResourceFrame3DS\[sMk64ExecStackDepth3DS - 1\];/return sMk64ExecStackDepth3DS != 0;/' "$INTERP_SRC.new"
   grep -q "return sMk64ExecStackDepth3DS != 0;" "$INTERP_SRC.new" || { echo "no pude activar las corridas estaticas"; exit 1; }
 fi
+# Normalizar un vector de largo cero daba 0/0 = NaN (luz o lookat con direccion cero, o hueso con escala cero). En la
+# PC no pasa nada; aqui ese NaN llega al GPU como direccion de luz en los uniformes de los huesos y el PICA200 de la
+# consola se queda colgado dibujando (Earthquake, Fissure, Sky Attack). Un vector de largo cero se queda en cero.
+perl -0pi -e 's/(void Interpreter::NormalizeVector\(float v\[3\]\) \{\n    float s = sqrtf\(v\[0\] \* v\[0\] \+ v\[1\] \* v\[1\] \+ v\[2\] \* v\[2\]\);\n)/$1    if (!(s > 0.0f) || s > 3.0e38f) { v[0] = v[1] = v[2] = 0.0f; return; }\n/' "$INTERP_SRC.new"
+grep -q "if (!(s > 0.0f) || s > 3.0e38f)" "$INTERP_SRC.new" || { echo "no pude parchear NormalizeVector"; exit 1; }
 python3 "$ROOT/platform/3ds/patch_interp_tex.py" "$INTERP_SRC.new" || exit 1
 python3 "$ROOT/platform/3ds/patch_interp_skin.py" "$INTERP_SRC.new" || exit 1
 python3 "$ROOT/platform/3ds/patch_interp_mat.py" "$INTERP_SRC.new" || exit 1
 python3 "$ROOT/platform/3ds/patch_interp_atlas.py" "$INTERP_SRC.new" || exit 1
 python3 "$ROOT/platform/3ds/patch_interp_fb.py" "$INTERP_SRC.new" || exit 1
 python3 "$ROOT/platform/3ds/patch_interp_fog.py" "$INTERP_SRC.new" || exit 1
+python3 "$ROOT/platform/3ds/patch_interp_vtx.py" "$INTERP_SRC.new" || exit 1
+if [ -n "${PS_BLACKBOX:-}" ]; then python3 "$ROOT/platform/3ds/patch_interp_box.py" "$INTERP_SRC.new" || exit 1
+  if [ -z "${PS_BOXLITE:-}" ]; then python3 "$ROOT/platform/3ds/crumbs.py" "$INTERP_SRC.new" "$INTERP_SRC.new" 0 "$OUT/migas/n_interp.inc" "$ROOT/platform/3ds/host" || exit 1; fi; fi
 [ -n "${PS_PROF:-}" ] && python3 "$ROOT/platform/3ds/prof_interp.py" "$INTERP_SRC.new"
 cmp -s "$INTERP_SRC.new" "$INTERP_SRC" && rm "$INTERP_SRC.new" || mv "$INTERP_SRC.new" "$INTERP_SRC"
 if newer "$OUT/interpreter_gbi2.o" "$INTERP_SRC" $PSDEPS; then
@@ -141,6 +204,14 @@ arm-none-eabi-gcc -c "$OUT/shader/fast3d_passthrough_shbin.S" -o "$OUT/shader/fa
 # Backend citro3d de MK64 con el arreglo de constantes del combinador (ver patch_citro3d.py)
 python3 "$ROOT/platform/3ds/patch_citro3d.py" "$MK64_3DS/platform/3ds/source/gfx_citro3d.cpp" "$OUT/gfx_citro3d_stadium.cpp.new" || exit 1
 python3 "$ROOT/platform/3ds/patch_atlas_backend.py" "$OUT/gfx_citro3d_stadium.cpp.new" || exit 1
+if [ -n "${PS_BLACKBOX:-}" ]; then
+  if [ -n "${PS_BOXLITE:-}" ]; then : > "$OUT/migas/n_interp.inc"; : > "$OUT/migas/n_back.inc"; : > "$OUT/migas/n_model.inc"; : > "$OUT/migas/n_soft.inc"; else
+  python3 "$ROOT/platform/3ds/crumbs.py" "$OUT/gfx_citro3d_stadium.cpp.new" "$OUT/gfx_citro3d_stadium.cpp.new" 2000 "$OUT/migas/n_back.inc" "$ROOT/platform/3ds/host" || exit 1
+  fi
+  printf 'extern "C" { volatile unsigned gPsCrumb[8]; volatile unsigned gPsCrumbN; }\nstatic const struct { unsigned id; const char* name; } kN[] = {\n#include "n_interp.inc"\n#include "n_back.inc"\n#include "n_model.inc"\n#include "n_soft.inc"\n};\nextern "C" const char* PsCrumbName3DS(unsigned id) { for (unsigned i = 0; i < sizeof kN / sizeof kN[0]; i++) if (kN[i].id == id) return kN[i].name; return "?"; }\n' > "$OUT/migas/crumb_names.cpp"
+  arm-none-eabi-g++ $CXXFLAGS -I"$OUT/migas" -c "$OUT/migas/crumb_names.cpp" -o "$OUT/migas/crumb_names.o" || exit 1
+  BOXOBJ="$BOXOBJ $OUT/migas/crumb_names.o"
+fi
 cmp -s "$OUT/gfx_citro3d_stadium.cpp.new" "$OUT/gfx_citro3d_stadium.cpp" && rm "$OUT/gfx_citro3d_stadium.cpp.new" || mv "$OUT/gfx_citro3d_stadium.cpp.new" "$OUT/gfx_citro3d_stadium.cpp"
 if newer "$OUT/gfx_citro3d_stadium.o" "$OUT/gfx_citro3d_stadium.cpp" "$OUT/shader/fast3d_passthrough_shbin.h" $PSDEPS; then
   arm-none-eabi-g++ -march=armv6k -mtune=mpcore -mfloat-abi=hard -mtp=soft -mword-relocations -ffunction-sections -D__3DS__ -g -DNDEBUG \

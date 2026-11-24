@@ -1084,7 +1084,12 @@ void func_84B0A36C(unk_D_84B25A58* arg0) {
 }
 
 void func_84B0A544(unk_D_84B25A58* arg0, BinArchive* arg1) {
+#ifdef PORT
+    extern u8* ps_prof_portrait(BinArchive*, s32, s32); /* el retrato del perfil del jugador */
+    u8* sp24 = ps_prof_portrait(arg1, D_800AE540.unk_1194[0].unk_08[0]->unk_214->unk_003, 0);
+#else
     u8* sp24 = func_8000484C(arg1, D_800AE540.unk_1194[0].unk_08[0]->unk_214->unk_003);
+#endif
     u8* sp20 = func_8000484C(arg1, D_800AE540.unk_1194[1].unk_08[0]->unk_214->unk_003);
 
     func_8001987C();

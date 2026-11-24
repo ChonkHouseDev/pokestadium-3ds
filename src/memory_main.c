@@ -338,6 +338,18 @@ u32 main_pool_pop_state(u32 arg) {
         argptr = argptr->prev;
     }
 
+#ifdef PORT
+    /* PORT: lo que se acaba de soltar (los dos lados) se avisa al host, para que tire lo que tenia horneado de esa
+       memoria (cache de modelos y sus copias en el GPU). Asi, al cerrar la ficha de un Pokemon de renta ('MONS'), su
+       modelo se va con ella y el siguiente que se cargue en el mismo lugar no se confunde con el anterior. */
+    {
+        extern void ps_mem_event(u32 kind, void* addr, u32 size);
+        if ((uintptr_t)sMemPool.listHeadL > (uintptr_t)listHeadL)
+            ps_mem_event(5, listHeadL, (u32)((uintptr_t)sMemPool.listHeadL - (uintptr_t)listHeadL));
+        if ((uintptr_t)listHeadR > (uintptr_t)sMemPool.listHeadR)
+            ps_mem_event(5, sMemPool.listHeadR, (u32)((uintptr_t)listHeadR - (uintptr_t)sMemPool.listHeadR));
+    }
+#endif
     // set the new left and right sides and queue and return.
     sMemPool.listHeadL = listHeadL;
     sMemPool.listHeadR = listHeadR;

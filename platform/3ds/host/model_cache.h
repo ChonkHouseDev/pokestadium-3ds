@@ -85,6 +85,7 @@ public:
     void beginFrame();
     // contadores desde la ultima llamada (entries/bytes/peakBytes son el estado actual)
     Stats takeStats();
+    Stats peekStats() const; // sin reiniciar (caja negra)
     void clear();
 
 private:

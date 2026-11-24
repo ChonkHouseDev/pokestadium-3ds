@@ -361,6 +361,22 @@ static const u8* gb_base_get(int n) {
     }
     return sGbBaseOn[n] == 1 ? sGbBase[n] : nullptr;
 }
+// la bola de la pantalla libre (iconball.png): 32x32 RGBA, llenando el cuadro
+#define GB_ICON_FILE GB_LBL_DIR "/iconball.bin"
+static u8 sGbIcon[32 * 32 * 4];
+static int sGbIconOn = -1;
+static void gb_icon_store(const u8* rgba, int w, int h) {
+    gb_mini_fit(rgba, w, h, sGbIcon, 32, true);
+    sGbIconOn = -1;
+    if (FILE* f = fopen(GB_ICON_FILE, "wb")) { fwrite(sGbIcon, 1, sizeof sGbIcon, f); fclose(f); }
+}
+static const u8* gb_icon_get(void) {
+    if (sGbIconOn < 0) {
+        sGbIconOn = 0;
+        if (FILE* f = fopen(GB_ICON_FILE, "rb")) { sGbIconOn = fread(sGbIcon, 1, sizeof sGbIcon, f) == sizeof sGbIcon; fclose(f); }
+    }
+    return sGbIconOn == 1 ? sGbIcon : nullptr;
+}
 static bool gb_mini_store(int rec, const u8* rgba, int w, int h) {
     static u8 out[GB_MINI_REC];
     gb_mini_fit(rgba, w, h, out);
@@ -458,6 +474,18 @@ static void gb_lbl_import(void) {
             if (fread(&nl, 1, 1, f) != 1 || nl >= sizeof name || fread(name, 1, nl, f) != nl || fread(sz, 1, 4, f) != 4) break;
             name[nl] = 0;
             const u32 fs = gb_le32(sz);
+            if (!strncmp(name, "iconball", 8) && fs > 0 && fs < 2u * 1024 * 1024) { // la bola de la barra de la pantalla libre
+                u8* data = (u8*)malloc(fs);
+                int w = 0, h = 0, comp = 0;
+                u8* img = nullptr;
+                if (data && fread(data, 1, fs, f) == fs && stbi_info_from_memory(data, (int)fs, &w, &h, &comp) && w <= 1024 && h <= 1024)
+                    img = stbi_load_from_memory(data, (int)fs, &w, &h, &comp, 4);
+                free(data);
+                if (!img) { logf("[etiquetas] %s: no se pudo abrir (hasta 1024x1024)\n", name); if (!data) break; continue; }
+                gb_icon_store(img, w, h);
+                stbi_image_free(img);
+                continue;
+            }
             const int base = !strncmp(name, "ball_rival", 10) ? 1 : !strncmp(name, "ball_swap", 9) ? 2 : !strncmp(name, "ball", 4) ? 0 : -1;
             const int mini = !strncmp(name, "mini_", 5) ? atoi(name + 5) : base == 0 ? 0 : base > 0 ? GB_MINI_ALT + base : -1;
             if (mini >= 0 && mini <= GB_MINI_ALT + 2 && fs > 0 && fs < 512u * 1024) { // un mini o la base
@@ -509,6 +537,7 @@ static void gb_lbl_load(void) {
 }
 
 static u8* sGbFb;
+static bool sGbBatShown; // el tablero VS de la batalla esta en la pantalla de abajo (lo copia la pantalla gigante)
 static inline void gb_blend(int x, int y, u32 rgb, int a) { // a: 0-255
     if ((unsigned)x >= 320u || (unsigned)y >= 240u || a <= 0) return;
     u8* p = sGbFb + (x * 240 + (239 - y)) * 3;
@@ -671,6 +700,7 @@ static void gb_card(int slot, const GbEntry* e, bool selected) {
 // la pantalla principal. left >= 0: segundos para empezar solo; ingame: tablero fijo mientras se juega
 #define GB_FMT_Y 159
 static bool sGbRoamHint; // hay Pokemon para la pantalla libre: se anuncia la tecla
+static bool sGbRoamFight; // en un modo de pelea: Profile no sale
 #define GB_BTN_Y 188
 static void gb_draw_main(const GbEntry* list, const int* pick, int sel, bool aspect43, int left, bool ingame) {
     if (!gb_screen_begin()) return;
@@ -680,8 +710,8 @@ static void gb_draw_main(const GbEntry* list, const int* pick, int sel, bool asp
     if (ingame) {
         gb_panel(8, GB_FMT_Y, 304, 74, 0x101A66, 0x6088F0, 1, 225);
         gb_label(160, GB_FMT_Y + 9, fmt, 0xFFFFFF, kUiFontSm, true);
-        gb_label(160, GB_FMT_Y + 29, sGbRoamHint ? "L: your Pokemon" : "Playing on the top screen", 0xC8D8FF, kUiFontSm, true);
-        gb_label(160, GB_FMT_Y + 49, "START + SELECT: quit", 0xFFD830, kUiFontSm, true);
+        gb_label(160, GB_FMT_Y + 29, sGbRoamHint ? (sGbRoamFight ? "L / R: Pokemon" : "L / R: Pokemon, Profile") : "Playing on the top screen", 0xC8D8FF, kUiFontSm, true);
+        gb_label(160, GB_FMT_Y + 49, kDiag ? "START + SELECT: quit" : "HOME: quit", 0xFFD830, kUiFontSm, true);
     } else {
         gb_button(8, GB_FMT_Y, 304, 25, "Y", 0x20A050, fmt, 0x1C2C90, 0x6088F0);
         gb_button(8, GB_BTN_Y, 148, 46, "X", 0x2C60E0, "Change Game Pak", 0x1C2C90, 0x6088F0);
@@ -1366,6 +1396,60 @@ static void gb_draw_team(const GbBat& b) {
     gb_press_draw();
     gb_screen_end();
 }
+#ifndef PS_SPECIES_GEN1
+#define PS_SPECIES_GEN1
+#include "species_gen1.inc"
+#endif
+// ---- la pantalla gigante del estadio: solo la pelea (los dos minis frente a frente, VS y su vida), a 320x240 ----
+// Se arma aparte (no es la pantalla de abajo): cada Pokemon con su base se dibuja a su tamano en una hoja y se copia al
+// doble en la imagen final. La copia la lee el host (host_3ds.cpp) cuando cambia.
+static u8 sJbCell[240 * 320 * 3]; // hoja (con la forma de la pantalla de abajo) para dibujar a tamano normal
+static u8 sJbImg[240 * 320 * 3];  // la imagen final
+static bool sJbReady;
+static u32 sJbSerial;             // cambia con cada imagen nueva
+static void gb_jumbo_render(const GbBat& b) {
+    u8* const keep = sGbFb;
+    // los dos Pokemon en la hoja, sobre un azul fijo que luego se toma como transparente
+    sGbFb = sJbCell;
+    for (int i = 0; i < 240 * 320; i++) { sJbCell[i * 3] = 0x5C; sJbCell[i * 3 + 1] = 0x18; sJbCell[i * 3 + 2] = 0x10; } // azul del fondo: las orillas suavizadas no quedan de otro color
+    const bool ko = sBatGrayKo;
+    sBatGrayKo = true;
+    for (int k = 0; k < 2; k++) gb_bat_mini(40 + k * 80, 40, b.species[k], b.hp[k], b.maxhp[k], b.alt[k], k == 1, !b.out[k], 3);
+    sBatGrayKo = ko;
+    gb_label(220, 30, "VS", 0xFFD830, kUiFontLg, true); // se copia al triple
+    const int vsw = gb_tw("VS", kUiFontLg) + 4;
+    // la imagen: fondo, VS, cada Pokemon al doble, su nombre y su barra de vida
+    sGbFb = sJbImg;
+    for (int y = 0; y < 240; y++) { const u32 c = gb_shade(0x10208C, 100 - y * 45 / 240); for (int x = 0; x < 320; x++) gb_blend(x, y, c, 255); }
+    gb_panel(4, 4, 312, 232, 0x0C1660, 0xFFD830, 3, 120, 10);
+    for (int k = 0; k < 2; k++) {
+        const int cx = 84 + k * 152, cy = 104;
+        for (int y = 0; y < 64; y++) for (int x = 0; x < 64; x++) {
+            const u8* q = sJbCell + ((40 + k * 80 - 32 + x) * 240 + (239 - (40 - 32 + y))) * 3;
+            if (q[0] == 0x5C && q[1] == 0x18 && q[2] == 0x10) continue;
+            const u32 c = (u32)(q[2] << 16 | q[1] << 8 | q[0]);
+            for (int j = 0; j < 2; j++) for (int i = 0; i < 2; i++) gb_blend(cx - 64 + x * 2 + i, cy - 64 + y * 2 + j, c, 255);
+        }
+        const int sp = b.species[k];
+        if (b.out[k] && sp >= 1 && sp <= 151) gb_label(cx, 172, kGen1Names[sp], 0xFFFFFF, kUiFontLg, true);
+        const int a = b.act[k] < 6 ? b.act[k] : 0;
+        const int hp = b.cnt[k] ? b.thp[k][a] : b.hp[k], mx = b.cnt[k] ? b.tmax[k][a] : b.maxhp[k];
+        const int w = mx > 0 ? 120 * (hp < 0 ? 0 : hp) / mx : 0;
+        gb_panel(cx - 64, 204, 128, 14, 0x141840, 0xC8D0F0, 1, 255, 6);
+        if (w > 0 && b.out[k]) gb_panel(cx - 60, 207, w, 8, hp * 2 > mx ? 0x40D860 : hp * 5 > mx ? 0xF0C830 : 0xF04830, hp * 2 > mx ? 0x40D860 : hp * 5 > mx ? 0xF0C830 : 0xF04830, 1, 255, 3);
+    }
+    for (int y = 0; y < 24; y++) for (int x = 0; x < vsw; x++) { // el VS al triple
+        const u8* q = sJbCell + ((220 - vsw / 2 + x) * 240 + (239 - (28 + y))) * 3;
+        if (q[0] == 0x5C && q[1] == 0x18 && q[2] == 0x10) continue;
+        const u32 c = (u32)(q[2] << 16 | q[1] << 8 | q[0]);
+        for (int j = 0; j < 3; j++) for (int i = 0; i < 3; i++) gb_blend(160 - vsw * 3 / 2 + x * 3 + i, 70 + y * 3 + j, c, 255);
+    }
+    sGbFb = keep;
+    sJbReady = true;
+    sJbSerial++;
+    { static int sFoto = -1; if (sFoto < 0) sFoto = host_flag("jumbofoto") != 0; // (para revisar la imagen: jumbo.raw en la SD)
+      if (sFoto) if (FILE* f = fopen("sdmc:/3ds/pokestadium/jumbo.raw", "wb")) { fwrite(sJbImg, 1, sizeof sJbImg, f); fclose(f); } }
+}
 static void gb_draw_battle(const GbBat& b) {
     if (b.view == 1) { gb_draw_team(b); return; }
     if (!gb_screen_begin()) return;
@@ -1610,11 +1694,26 @@ static void gb_bat_tick(void) {
     bool force = false;
     if (sShown) { sBatShownTicks += now - sShownAt; gb_press_step(now, &force); if (sPrev.view == 0 && !force) gb_bat_anim(sPrev, now); }
     sShownAt = now;
+    sGbBatShown = sShown && sPrev.view == 0 && !sPrev.runq;
     if (sBatNow) { sBatNow = false; sNext = 0; }
     if (now < sNext && !force) return;
     sNext = now + 268111856ull / 10;
     // hay batalla mientras el juego lo diga (gPsBatOn); si un dato no se puede leer un momento, se deja lo que habia
     const bool on = BLOB_BAT_ON && intro_be(BLOB_BAT_ON) != 0;
+    {   // (solo para probar en el emulador) ganaprueba.txt: el rival queda con 1 de vida, para pasar de batalla con un golpe
+        static int sWin = -1;
+        if (sWin < 0) sWin = host_flag("ganaprueba") == 1;
+        if (sWin && on) {
+            const u32 p = intro_be(BLOB_BATTLE_MON + 4);
+            if (p >= BLOB_BASE && p < BLOB_BASE + BLOB_SIZE - 0x950) {
+                u8* m = (u8*)(p + 0x654 + 0x38);
+                if ((m[0x0C] << 8 | m[0x0D]) > 1) { m[0x0C] = 0; m[0x0D] = 1; }
+                const u32 t = intro_be(p + 0x724);
+                if (t >= BLOB_BASE && t < BLOB_BASE + BLOB_SIZE - 0x220)
+                    for (int j = 0; j < 6; j++) { u8* m2 = (u8*)t + 0x1C + j * 0x54; if ((m2[2] << 8 | m2[3]) > 1) { m2[2] = 0; m2[3] = 1; } }
+            }
+        }
+    }
     GbBat b;
     sGbNoWait = true;
     if (on && gb_bat_read(&b) && (!sShown || force || memcmp(&b, &sPrev, sizeof b) != 0)) { if (!sShown) { // empieza la batalla: los minis de los dos equipos, de una vez
@@ -1622,8 +1721,8 @@ static void gb_bat_tick(void) {
             for (int k = 0; k < 2; k++) for (int j = 0; j < b.cnt[k] && n < 14; j++) { recs[n++] = b.tsp[k][j]; if (b.talt[k][j] && n < 14) recs[n++] = GB_MINI_ALT; }
             gb_mini_prime(recs, n);
         }
-        if (sShown && (b.view != sPrev.view || b.runq != sPrev.runq)) sPressUntil = 0; /* cambio de pantalla: lo iluminado ya no va */ sPrev = b; sShown = true; const u64 t0 = svcGetSystemTick(); gb_draw_battle(b); gb_press_mark(t0); sFullDraws++; sFullTicks += svcGetSystemTick() - t0; }
-    else if (!on && sShown) { sShown = false; sVsBgOk = false; sJob = GJ_NONE; sJobBtn = 0; sBatNSeen = 0; sBatView = 0; gb_bat_out_reset(); gb_roam_reset(); }
+        if (sShown && (b.view != sPrev.view || b.runq != sPrev.runq)) sPressUntil = 0; /* cambio de pantalla: lo iluminado ya no va */ sPrev = b; sShown = true; const u64 t0 = svcGetSystemTick(); gb_draw_battle(b); if (0) gb_jumbo_render(b); /* pantalla del estadio apagada */ gb_press_mark(t0); sFullDraws++; sFullTicks += svcGetSystemTick() - t0; }
+    else if (!on && sShown) { sShown = false; sJbReady = false; sVsBgOk = false; sJob = GJ_NONE; sJobBtn = 0; sBatNSeen = 0; sBatView = 0; gb_bat_out_reset(); gb_roam_reset(); }
     sGbNoWait = false;
 }
 #else

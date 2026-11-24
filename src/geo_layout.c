@@ -462,6 +462,10 @@ GraphNode* process_geo_layout(MemoryBlock* pool, void* segptr) {
     gGeoLayoutStack[1] = 0;
 
     while (gGeoLayoutCommand != NULL) {
+#ifdef PORT
+        { extern int gPsGeoTrace; extern void ps_printf(const char*, ...);
+          if (gPsGeoTrace > 0) { gPsGeoTrace--; ps_printf("[jp] geo %08x: %08x %08x %08x\n", (u32)(uintptr_t)gGeoLayoutCommand, ((u32*)gGeoLayoutCommand)[0], ((u32*)gGeoLayoutCommand)[1], ((u32*)gGeoLayoutCommand)[2]); } }
+#endif
         GeoLayoutJumpTable[gGeoLayoutCommand[0x00]]();
     }
 

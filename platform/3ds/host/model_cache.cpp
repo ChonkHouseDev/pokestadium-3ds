@@ -211,6 +211,14 @@ void ModelCache::beginFrame() {
     for (uint32_t id : idle) { drop(id); st_.idleDropped++; }
 }
 
+Stats ModelCache::peekStats() const {
+    Stats s = st_;
+    s.entries = (uint32_t)byId_.size();
+    s.bytes = used_;
+    s.gpuBytes = 0;
+    for (auto& kv : byId_) s.gpuBytes += kv.second.gpuBytes;
+    return s;
+}
 Stats ModelCache::takeStats() {
     Stats s = st_;
     s.entries = (uint32_t)byId_.size();

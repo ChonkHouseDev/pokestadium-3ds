@@ -851,7 +851,12 @@ void func_80029BC0(void) {
 
         if (sp4E == 5) {
             D_800AE540.unk_11F6 = 0;
+#ifdef PORT
+            { extern int ps_jp_scene_play(void); if (!ps_jp_scene_play()) FRAGMENT_LOAD_AND_CALL(fragment63, 1, 0);
+                else FRAGMENT_LOAD_AND_CALL(fragment63, 4, 0); } // entrada japonesa tambien en las copas y el castillo
+#else
             FRAGMENT_LOAD_AND_CALL(fragment63, 1, 0);
+#endif
 
             while (!(D_800AE540.unk_11F6 & 1)) {
                 FRAGMENT_LOAD_AND_CALL(fragment64, 0, 0);
@@ -865,6 +870,9 @@ void func_80029BC0(void) {
 
                 FRAGMENT_LOAD_AND_CALL(fragment63, 2, 0);
             }
+#ifdef PORT
+            { extern u32 gPsChalEnd; gPsChalEnd++; } /* fin del reto (ganado o dejado): la pantalla de abajo suelta su equipo */
+#endif
 
             if (D_800AE540.unk_11F6 & 0x20) {
                 sp4E = 4;
@@ -949,7 +957,12 @@ void func_8002A06C(void) {
         switch (sp4E) {
             case 4:
                 D_800AE540.unk_11F6 = 0;
+#ifdef PORT
+                { extern int ps_jp_scene_play(void); if (!ps_jp_scene_play()) FRAGMENT_LOAD_AND_CALL(fragment63, 0, 0);
+                    else FRAGMENT_LOAD_AND_CALL(fragment63, 4, 0); } // entrada japonesa si esta su ROM (ver func_8002ADE8)
+#else
                 FRAGMENT_LOAD_AND_CALL(fragment63, 0, 0);
+#endif
 
                 while (!(D_800AE540.unk_11F6 & 1)) {
                     FRAGMENT_LOAD_AND_CALL(fragment64, 0, 0);
@@ -1025,7 +1038,12 @@ void func_8002A400(void) {
         switch (sp4E) {
             case 3:
                 D_800AE540.unk_11F6 = 0;
+#ifdef PORT
+                { extern int ps_jp_scene_play(void); if (!ps_jp_scene_play()) FRAGMENT_LOAD_AND_CALL(fragment63, 0, 0);
+                    else FRAGMENT_LOAD_AND_CALL(fragment63, 4, 0); } // entrada japonesa si esta su ROM (ver func_8002ADE8)
+#else
                 FRAGMENT_LOAD_AND_CALL(fragment63, 0, 0);
+#endif
 
                 while (!(D_800AE540.unk_11F6 & 1)) {
                     FRAGMENT_LOAD_AND_CALL(fragment64, 0, 0);
@@ -1182,7 +1200,12 @@ void func_8002AAA8(void) {
             sp4C = 0;
             D_800AE540.unk_11F6 = 0;
 
+#ifdef PORT
+            { extern int ps_jp_scene_play(void); if (!ps_jp_scene_play()) FRAGMENT_LOAD_AND_CALL(fragment63, 1, 0);
+                else FRAGMENT_LOAD_AND_CALL(fragment63, 4, 0); } // entrada japonesa tambien en las copas y el castillo
+#else
             FRAGMENT_LOAD_AND_CALL(fragment63, 1, 0);
+#endif
 
             while (!(D_800AE540.unk_11F6 & 1)) {
                 FRAGMENT_LOAD_AND_CALL(fragment64, 0, 0);
@@ -1196,6 +1219,9 @@ void func_8002AAA8(void) {
 
                 FRAGMENT_LOAD_AND_CALL(fragment63, 2, 0);
             }
+#ifdef PORT
+            { extern u32 gPsChalEnd; gPsChalEnd++; } /* fin del reto (ganado o dejado): la pantalla de abajo suelta su equipo */
+#endif
 
             if (D_800AE540.unk_11F6 & 0x200) {
                 FRAGMENT_LOAD_AND_CALL(fragment40, 0, 0);
@@ -1232,7 +1258,12 @@ void func_8002ADE8(s32 arg0) {
     main_pool_push_state('QUIK');
     func_8002C394(arg0);
 
+#ifdef PORT
+    { extern int ps_jp_scene_play(void); if (!ps_jp_scene_play()) FRAGMENT_LOAD_AND_CALL(fragment63, 0, 0);
+        else FRAGMENT_LOAD_AND_CALL(fragment63, 4, 0); /* la pantalla de VS de la US, sin mostrarla: solo su preparacion y su salida, para dejar todo como lo espera la seleccion */ } // entrada japonesa si esta su ROM
+#else
     FRAGMENT_LOAD_AND_CALL(fragment63, 0, 0);
+#endif
     FRAGMENT_LOAD_AND_CALL(fragment64, 0, 0);
 
     main_pool_push_state('FIGT');
@@ -1252,7 +1283,12 @@ void func_8002ADE8(s32 arg0) {
 void func_8002AF38(void) {
     main_pool_push_state('EVNT');
 
+#ifdef PORT
+    { extern int ps_jp_scene_play(void); if (!ps_jp_scene_play()) FRAGMENT_LOAD_AND_CALL(fragment63, 0, 0);
+        else FRAGMENT_LOAD_AND_CALL(fragment63, 4, 0); } // entrada japonesa si esta su ROM (ver func_8002ADE8)
+#else
     FRAGMENT_LOAD_AND_CALL(fragment63, 0, 0);
+#endif
     FRAGMENT_LOAD_AND_CALL(fragment64, 0, 0);
 
     main_pool_push_state('FIGT');

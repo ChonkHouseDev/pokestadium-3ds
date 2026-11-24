@@ -20,6 +20,8 @@
 extern bool gGfxConvertTexel1Test;
 extern int gGfxConvertOnlyGroup;
 extern bool gGfxConvertGpuFb;
+extern const uint8_t* gGfxConvertNotScreen;
+extern "C" void host_dbg_line(const char*);
 extern bool gGfxConvertSkin;
 extern bool gGfxConvertMeshBlocks;
 extern uint32_t gGfxConvertCcW0, gGfxConvertCcW1;
@@ -180,6 +182,10 @@ struct Converter {
     // debe pisar. Antes el fondo se redibujaba aqui en cada cuadro, encima de esa copia, y el modelo del Pokemon
     // nunca se veia en las pantallas que pintan un fondo antes del modelo (resumen del laboratorio, renta).
     std::unordered_map<const uint8_t*, uint32_t> prevGpuTargets; // destino -> cuadros desde que se uso
+    // Todas las imagenes que alguna vez dibujo el GPU (retratos con el modelo 3D): su contenido solo esta en el cache de
+    // texturas, en la memoria del juego no hay nada. Un retrato se dibuja una vez y luego solo se usa; prevGpuTargets lo
+    // olvida a los 8 cuadros y la limpieza por memoria soltada lo borraba (retrato vacio despues de cambiar de modo)
+    std::unordered_set<const uint8_t*> everGpuTargets;
     void markOff(const uint8_t* pc, bool tri) {
         offscreenCmds.insert(pc);
         if (curOff) { auto& t = fbTargets[curOff]; t.cmds.push_back(pc); t.tris |= tri; }
@@ -251,7 +257,7 @@ struct Converter {
                     uint32_t w = (w0 & 0xFFF) + 1;
                     if (!p) break;
                     cur = p;
-                    if (!fb && (w == 320 || w == 640)) { fb = p; *fbWidth = w; }
+                    if (!fb && (w == 320 || w == 640) && p != gGfxConvertNotScreen && p != z) { fb = p; *fbWidth = w; }
                     else if (p != fb && p != z) return true;
                     break;
                 }
@@ -338,7 +344,7 @@ struct Converter {
                 case G_SETCIMG: {
                     uint8_t* p = const_cast<uint8_t*>(resolve(w1));
                     uint32_t w = (w0 & 0xFFF) + 1;
-                    if (!mainFb && (w == 320 || w == 640)) { mainFb = p; mainFbWidth = w; }
+                    if (!mainFb && (w == 320 || w == 640) && p != gGfxConvertNotScreen && p != zImg) { mainFb = p; mainFbWidth = w; }
                     // el z-buffer tambien se limpia con SETCIMG + relleno: eso lo maneja el interprete
                     bool off = p && p != mainFb && p != zImg;
                     soft.Command(w0, w1, p, 0, 0);
@@ -447,6 +453,8 @@ struct Converter {
         soft.SetSkip(false);
         for (auto it = prevGpuTargets.begin(); it != prevGpuTargets.end();) { if (++it->second > 8) it = prevGpuTargets.erase(it); else ++it; }
         for (auto& kv : gpuTargets) prevGpuTargets[kv.first] = 0;
+        if (everGpuTargets.size() > 4096) everGpuTargets.clear();
+        for (auto& kv : gpuTargets) everGpuTargets.insert(kv.first);
     }
 
     void* alloc(size_t n) {
@@ -597,12 +605,31 @@ struct Converter {
         return (op >= 0xE2 && op != 0xE4 && op != 0xE5 && op != 0xF6 && op != 0xFF && op != 0xFE) ||
                op == 0xD7 || op == 0xD9 || op == G_MOVEWORD || op == G_MOVEMEM || op == 0x00;
     }
-    bool stateOnlyDl(const uint8_t* d) {
-        if (!d) return false;
+    // (tambien con llamadas a otras listas de solo estado: las texturas de ojos/boca llegan como G_DL a una lista
+    // que a su vez llama a otra con los modos)
+    bool stateOnlyDl(const uint8_t* d, int depth = 0) {
+        if (!d || depth > 4) return false;
         for (int k = 0; k < 4096; k++) {
             uint8_t op = d[k * 8];
             if (op == G_ENDDL) return true;
+            if (op == G_DL && d[k * 8 + 1] == 0) {
+                if (!stateOnlyDl(resolve(be32(d + k * 8 + 4)), depth + 1)) return false;
+                continue;
+            }
             if (!stateOp(op) || op == G_MOVEWORD) return false;
+        }
+        return false;
+    }
+    // Hueso: G_MTX (cargar) y luego su malla, con listas de solo estado (texturas) en medio permitidas:
+    // [G_MTX][G_DL texturas][G_DL malla]. Si la malla no se reconocia, el lote se cortaba ahi y la malla
+    // se dibujaba por el interprete leyendo ranuras de vertices que solo habia cargado el lote (piezas sueltas).
+    bool boneFollows(const uint8_t* src, uint32_t i, uint32_t n) {
+        for (uint32_t j = i + 1; j < n && j < i + 17; j++) {
+            const uint8_t* c = src + j * 8;
+            if (c[0] != G_DL || c[1] != 0) return false;
+            const uint8_t* d = resolve(be32(c + 4));
+            if (meshLike(d)) return true;
+            if (!stateOnlyDl(d)) return false;
         }
         return false;
     }
@@ -1027,7 +1054,7 @@ struct Converter {
             const uint8_t op = w0 >> 24;
             hA = 0x811C9DC5u; hB = 0x1234567u; hF = 0; hS = 0;
             // modelos con huesos dentro del tramo: no es HUD
-            if (gGfxConvertSkin && op == G_MTX && ((w0 & 0xFF) ^ 1) == 2 && b + k + 1 < n && c[8] == G_DL && c[9] == 0 && meshLike(resolve(be32(c + 12))))
+            if (gGfxConvertSkin && op == G_MTX && ((w0 & 0xFF) ^ 1) == 2 && boneFollows(src, b + k, n))
                 hBad = true, hWhy |= 1u << 10;
             // la mitad de los comandos (mitades de rectangulo, sincronias, tamano de tile) no leen memoria ni cuentan
             // para las banderas: solo sus dos palabras
@@ -1059,7 +1086,9 @@ struct Converter {
         const uint8_t oF = hF;
         const uint16_t oS = hS;
         if (sub) { hA = 0x811C9DC5u; hB = 0x1234567u; hBad = false; hF = 0; hS = 0; }
+        ++bodyLevel;
         uint32_t r = convertDlBody(addr, depth);
+        --bodyLevel;
         auto e = dlCache.find(addr);
         if (e != dlCache.end()) {
             e->second.segs = usedSegs;
@@ -1076,6 +1105,9 @@ struct Converter {
         return r;
     }
 
+    int branchHops = 0, bodyLevel = 0;
+    SkinRun* carryRun = nullptr; // lote de huesos que sigue en la lista destino de un salto
+    uint32_t skinCarries = 0;
     uint32_t convertDlBody(uint32_t addr, int depth) {
         const uint8_t* src = resolve(addr);
         if (!src || depth > 32) { errors++; return 0; }
@@ -1145,9 +1177,21 @@ struct Converter {
         uint32_t pendingHalf1 = 0;
         // en el heap: convertDlBody es recursivo y el hilo del juego tiene poca pila en el 3DS
         // uno por profundidad, reusado: casi ninguna lista trae huesos y crear/limpiar 2.5 KB por lista salia caro
-        if (skinPool.size() <= (size_t)depth) skinPool.resize(depth + 1);
-        if (!skinPool[depth] || skinPool[depth]->dirty) skinPool[depth].reset(new SkinRun()); // en el heap: poca pila
-        SkinRun& skin = *skinPool[depth];
+        // uno por lista abierta (no por nivel): un salto sigue en el mismo nivel pero su lista corre mientras la de
+        // arriba aun tiene su lote a medias
+        const size_t lvl = (size_t)bodyLevel;
+        if (skinPool.size() <= lvl) skinPool.resize(lvl + 1);
+        if (!skinPool[lvl] || skinPool[lvl]->dirty) skinPool[lvl].reset(new SkinRun()); // en el heap: poca pila
+        // la lista viene de un salto a mitad de un modelo: sigue el mismo lote (huesos y ranuras de vertices). Antes
+        // empezaba de cero y los triangulos que unen con el hueso anterior (pata con cuerpo, alas) se perdian
+        if (carryRun && carryRun != skinPool[lvl].get()) {
+            *skinPool[lvl] = *carryRun;
+            skinPool[lvl]->lastMeshSlot = -1;
+            carryRun->reset();
+            skinCarries++;
+        }
+        carryRun = nullptr;
+        SkinRun& skin = *skinPool[lvl];
         std::vector<uint32_t> blockAt;
         std::vector<uint8_t> consumed;
         const bool blocks = gGfxConvertSkin && gGfxConvertMeshBlocks && !meshLike(src) && planMeshBlocks(src, n, blockAt, consumed);
@@ -1285,8 +1329,7 @@ struct Converter {
             }
             if (gGfxConvertSkin) {
                 // hueso: G_MTX de modelview (cargar) seguido de una malla
-                bool boneMtx = op == G_MTX && ((w0 & 0xFF) ^ 1) == 2 && i + 1 < n && src[(i + 1) * 8] == G_DL &&
-                               src[(i + 1) * 8 + 1] == 0 && meshLike(resolve(be32(src + (i + 1) * 8 + 4)));
+                bool boneMtx = op == G_MTX && ((w0 & 0xFF) ^ 1) == 2 && boneFollows(src, i, n);
                 if (boneMtx) {
                     convLog("hueso", w1, i, be32(src + (i + 1) * 8 + 4));
                     const uint8_t* m = resolve(w1);
@@ -1311,6 +1354,9 @@ struct Converter {
                     }
                     if (stateOnlyDl(d)) skinFlush(skin, out); // texturas entre huesos: el modelo sigue
                     else { skinFlush(skin, out); skin.reset(); }
+                } else if (skin.active && op == G_DL && ((w0 >> 16) & 0xFF) == 1) {
+                    skinFlush(skin, out); // salto: el lote sigue en la lista de destino
+                    carryRun = &skin;
                 } else if (skin.active) {
                     skinFlush(skin, out);
                     if (!stateOp(op)) skin.reset();
@@ -1365,7 +1411,15 @@ struct Converter {
                     break;
                 }
                 case G_DL: {
-                    uint32_t sub = convertDl(w1, depth + 1);
+                    // un salto (G_DL con 1: la lista sigue alla y no regresa) no anida: no cuenta como nivel. Antes contaba, y
+                    // una lista partida en mas de 32 tramos (Moltres contra Grimer, la lista de renta con varios modelos)
+                    // perdia el ultimo salto: quedaba un G_NOOP y el interprete seguia leyendo los datos de despues como
+                    // comandos. Los saltos se limitan aparte (cada nivel usa ~1 KB de la pila del host, que tiene 512 KB).
+                    const bool jump = ((w0 >> 16) & 0xFF) == 1;
+                    if (jump && ++branchHops > 256) { errors++; branchHops--; w0 = 0; w1 = 0; break; }
+                    uint32_t sub = convertDl(w1, jump ? depth : depth + 1);
+                    carryRun = nullptr; // (destino ya convertido en este cuadro: no se uso)
+                    if (jump) branchHops--;
                     w1 = sub;
                     if (!sub) { w0 = 0; } // si no se pudo convertir, se omite (G_NOOP)
                     break;
@@ -1393,7 +1447,7 @@ struct Converter {
                     if (op == G_SETZIMG) convZImg = p;
                     if (op == G_SETCIMG && p) {
                         uint32_t w = (w0 & 0xFFF) + 1;
-                        if (!convMainFb && (w == 320 || w == 640)) { convMainFb = p; convMainFbWidth = w; }
+                        if (!convMainFb && (w == 320 || w == 640) && p != gGfxConvertNotScreen && p != convZImg) { convMainFb = p; convMainFbWidth = w; }
                         else if (p != convMainFb && p != convZImg) sawOffscreen = true;
                         // destino que va al GPU: 'PSFB', direccion, ancho, alto
                         auto gt = gpuTargets.find(p);
@@ -1456,6 +1510,10 @@ bool gGfxConvertTexel1Test = false;
 int gGfxConvertOnlyGroup = -1;
 bool gGfxConvertSkin = false;
 bool gGfxConvertMeshBlocks = true;
+// Imagen de 320 de ancho que NO es la pantalla aunque sea el primer destino del cuadro (escena de entrada japonesa:
+// dibuja primero a su imagen y despues a la pantalla). El host la toma del juego en cada cuadro.
+const uint8_t* gGfxConvertNotScreen = nullptr;
+extern "C" const unsigned char* PsNotScreen3DS(void) { return gGfxConvertNotScreen; }
 bool gGfxConvertGpuFb = true; // imagenes aparte con triangulos en el GPU (modelos del VS, fotos); sinfbgpu.txt lo apaga
 uint32_t gGfxConvertCcW0 = 0, gGfxConvertCcW1 = 0;
 namespace {
@@ -1490,6 +1548,14 @@ void GfxConvertModelCacheConfig(uint32_t budgetBytes, bool verify) {
     gModelCache.configure(budgetBytes, verify);
 }
 mc::Stats GfxConvertModelCacheStats() { return gModelCache.takeStats(); }
+mc::Stats GfxConvertModelCachePeek() { return gModelCache.peekStats(); }
+void GfxConvertModelCacheClear() { gModelCache.clear(); }
+// imagen que el juego dibuja fuera de pantalla y el port dibuja en el GPU (retratos de la pelea, etc.): su textura vive
+// en el GPU y la memoria del juego no la tiene, asi que no se debe borrar del cache aunque esa memoria se suelte
+bool GfxConvertIsGpuTarget(const void* p) {
+    const uint8_t* q = static_cast<const uint8_t*>(p);
+    return sConv.gpuTargets.count(q) || sConv.prevGpuTargets.count(q) || sConv.fbTargets.count(q) || sConv.everGpuTargets.count(q);
+}
 
 uint32_t GfxConvertFrame(uint32_t dlAddr, GfxConvertStats* stats) {
     gModelCache.beginFrame();

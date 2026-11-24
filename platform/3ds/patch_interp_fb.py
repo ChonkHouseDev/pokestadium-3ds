@@ -76,6 +76,12 @@ int gPsFbCurId3DS = 0;
 extern "C" uint32_t gPsClearRgba3DS;
 static uint32_t sPsFbFrame3DS = 1;      // cuadro en curso (sube en StartFrame)
 static uint32_t sPsFbSeenFrame3DS[64];  // ultimo cuadro en que se entro a cada imagen
+static uint32_t sPsFbW3DS[64], sPsFbH3DS[64]; // tamano con que se creo cada framebuffer
+extern "C" uint32_t gPsFbCreated3DS, gPsFbReused3DS;
+uint32_t gPsFbCreated3DS, gPsFbReused3DS;
+extern "C" const unsigned char* PsNotScreen3DS(void); // gfx_convert.cpp
+static int sPsFbDirectId3DS = 0;       // su framebuffer
+static uintptr_t sPsFbDirect3DS = 0; // imagen registrada como textura directa del GPU
 bool gfx_ps_fb_handler(F3DGfx** cmd0) {
     Interpreter* gfx = mInstance;
     F3DGfx* cmd = *cmd0;
@@ -83,8 +89,30 @@ bool gfx_ps_fb_handler(F3DGfx** cmd0) {
     gPsFbStats3DS[2]++;
     if (q == nullptr || q[0] != 0x50534642u || q[2] == 0 || q[3] == 0) { gPsFbStats3DS[3]++; return false; }
     gfx->Flush();
-    int& id = sPsFbIds3DS[q[1]];
-    if (id <= 0) id = gfx->CreateFrameBuffer(q[2], q[3], q[2], q[3], 0, false);
+    // imagen que se usa directo como textura (ver abajo): framebuffer propio, para no heredar el de otra pantalla
+    const bool direct3DS = PsNotScreen3DS() != nullptr && static_cast<uintptr_t>(q[1]) == reinterpret_cast<uintptr_t>(PsNotScreen3DS());
+    int& id = direct3DS ? sPsFbDirectId3DS : sPsFbIds3DS[q[1]];
+    // Un framebuffer del GPU por imagen del juego. Antes se creaba uno por cada direccion nueva y nunca se soltaba:
+    // al volver a una pantalla con imagenes (presentacion, retratos) en otras direcciones se seguian creando hasta
+    // acabarse la memoria de video, y desde ahi esas imagenes (los Pokemon de la presentacion) ya no se dibujaban.
+    // Ahora una direccion nueva reusa uno del mismo tamano que no se haya usado en los ultimos cuadros.
+    if (id > 0 && id < 64 && !direct3DS && (sPsFbW3DS[id] != q[2] || sPsFbH3DS[id] != q[3])) id = 0; // cambio de tamano
+    if (id <= 0 && !direct3DS) {
+        for (auto it = sPsFbIds3DS.begin(); it != sPsFbIds3DS.end(); ++it) {
+            const int f = it->second;
+            if (it->first == q[1] || f <= 0 || f >= 64 || sPsFbW3DS[f] != q[2] || sPsFbH3DS[f] != q[3]) continue;
+            if (sPsFbFrame3DS - sPsFbSeenFrame3DS[f] < 3) continue; // en uso (este cuadro o los anteriores: copia pendiente)
+            id = f;
+            sPsFbIds3DS.erase(it); // la direccion vieja suelta su framebuffer (id es otra entrada: sigue valida)
+            gPsFbReused3DS++;
+            break;
+        }
+    }
+    if (id <= 0) {
+        id = gfx->CreateFrameBuffer(q[2], q[3], q[2], q[3], 0, false);
+        if (id > 0 && id < 64) { sPsFbW3DS[id] = q[2]; sPsFbH3DS[id] = q[3]; }
+        gPsFbCreated3DS++;
+    }
     if (id <= 0) { gPsFbStats3DS[3] += 100; return false; }
     gPsFbCurId3DS = id;
     gfx->SetFrameBuffer(id, 1.0f);
@@ -114,7 +142,12 @@ bool gfx_ps_fb_handler(F3DGfx** cmd0) {
     sPsFbActive3DS = true;
     gPsFbActive3DS = true;
     PsFbForgetRects3DS(gfx);
-    PsFbQueueReadback3DS(id, q[1], q[2], q[3]);
+    // Imagen que el juego solo vuelve a usar como textura (pantalla gigante de la entrada japonesa): se usa directo
+    // la del GPU, sin copiarla a la memoria del juego en cada cuadro (la copia de 320x240 costaba ~100 ms).
+    if (direct3DS) {
+        gfx->mFbTextures[static_cast<uintptr_t>(q[1])] = id;
+        sPsFbDirect3DS = static_cast<uintptr_t>(q[1]);
+    } else PsFbQueueReadback3DS(id, q[1], q[2], q[3]);
     gPsFbStats3DS[0]++;
     return false;
 }
@@ -128,7 +161,7 @@ rep("""    gfx->GfxDpSetColorImage(C0(21, 3), C0(19, 2), C0(0, 11), gfx->SegAddr
     if (gfx->mRdp->color_image_address != gfx->mRdp->z_buf_address && !PsFbIsFbZ3DS(gfx->mRdp->z_buf_address)) sPsMainZ3DS = gfx->mRdp->z_buf_address;
     return false;""")
 # al empezar un cuadro no puede quedar activa
-rep("void Interpreter::StartFrame() {", "void Interpreter::StartFrame() {\n    sPsFbActive3DS = false;\n    gPsFbActive3DS = false;\n    sPsFbFrame3DS++;")
+rep("void Interpreter::StartFrame() {", "void Interpreter::StartFrame() {\n    sPsFbActive3DS = false;\n    gPsFbActive3DS = false;\n    sPsFbFrame3DS++;\n    if (sPsFbDirect3DS != 0 && reinterpret_cast<uintptr_t>(PsNotScreen3DS()) != sPsFbDirect3DS) { mFbTextures.erase(sPsFbDirect3DS); sPsFbDirect3DS = 0; }")
 rep("""    { (int8_t)0x41, { "G_PS_SKIN", gfx_ps_skin_handler } },""",
     """    { (int8_t)0x41, { "G_PS_SKIN", gfx_ps_skin_handler } },
     { (int8_t)0x4D, { "G_PS_FB", gfx_ps_fb_handler } },                              // Stadium: imagen aparte en el GPU
@@ -204,3 +237,16 @@ extern "C" uint8_t gPsFbFillA3DS[64];
 void Interpreter::GfxDpTextureRectangle(int32_t ulx, int32_t uly, int32_t lrx, int32_t lry, uint8_t tile, int16_t uls,""")
 open(p, "w").write(s)
 print("patch_interp_fb: ok")
+
+# La textura es una imagen del GPU: que el atlas no siga creyendo que la textura actual es la anterior (dibujaba la
+# pantalla gigante con la textura de la lampara).
+rep("            mRapi->SelectTextureFb(fbIt->second);",
+    "            mRapi->SelectTextureFb(fbIt->second);\n            mRenderingState.mTextures[i] = nullptr;")
+# Mientras la textura puesta es una imagen del GPU, lo dibujado con ella sale antes de cambiar de textura: el atlas
+# cambia de celda sin vaciar la fila cuando la pagina es la misma, y esos triangulos se dibujaban con la pagina.
+rep("void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {",
+    """static bool sPsFbTexBound3DS = false;
+void Interpreter::ImportTexture(int i, int tile, bool importReplacement) {
+    if (sPsFbTexBound3DS) { Flush(); sPsFbTexBound3DS = false; }""")
+rep("            mRenderingState.mTextures[i] = nullptr;", "            mRenderingState.mTextures[i] = nullptr;\n            sPsFbTexBound3DS = true;")
+open(p, "w").write(s)

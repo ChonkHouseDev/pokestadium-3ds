@@ -58,8 +58,8 @@ void GfxRenderingAPICitro3D::DrawPsResident3DS(const PsResidentDraw3DS& d) {
     auto* rows = C3D_FVUnifWritePtr(GPU_VERTEX_SHADER, mImpl->psSkinBonesUniform, d.nBones * 6);
     for (int b = 0; b < d.nBones; ++b)
         for (int r = 0; r < 6; ++r) {
-            rows[b * 6 + r].x = d.bones[b][r][0]; rows[b * 6 + r].y = d.bones[b][r][1];
-            rows[b * 6 + r].z = d.bones[b][r][2]; rows[b * 6 + r].w = d.bones[b][r][3];
+            rows[b * 6 + r].x = PsFinite3DS(d.bones[b][r][0]); rows[b * 6 + r].y = PsFinite3DS(d.bones[b][r][1]);
+            rows[b * 6 + r].z = PsFinite3DS(d.bones[b][r][2]); rows[b * 6 + r].w = PsFinite3DS(d.bones[b][r][3]);
         }
     C3D_BoolUnifSet(GPU_VERTEX_SHADER, mImpl->nativeGeometryUniform, false);
     C3D_BoolUnifSet(GPU_VERTEX_SHADER, mImpl->nativeLightingUniform, false);

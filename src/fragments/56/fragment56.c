@@ -15,6 +15,16 @@
 static char** D_82C01660;
 static s16 D_82C01664;
 static u16 D_82C01666;
+#ifdef PORT
+/* PORT: opcion de la hora del dia (Clock, Day, Sunset, Night): en 6A40.c, el host la lee y la guarda */
+extern s32 gPsTimeMode;
+static const char* const kPsTimeNames[4] = { "CLOCK", "DAY", "SUNSET", "NIGHT" };
+#define PS_OPT_N 6
+#define PS_OPT_ROW 0x40 /* dos renglones mas: TIME y LANGUAGE */
+#else
+#define PS_OPT_N 4
+#define PS_OPT_ROW 0
+#endif
 
 void func_82C00020(void) {
     gDPPipeSync(gDisplayListHead++);
@@ -67,8 +77,8 @@ void func_82C00574(s16 arg0, s16 arg1) {
 void func_82C00658(s16 arg0, s32 arg1) {
     UNUSED s32 pad;
     s32 var_a2;
-    s16 sp30 = (arg0 * 0x16) + 0xA;
-    s16 sp2C = ((0xBA - sp30) / 2) + 0xE5;
+    s16 sp30 = (arg0 * (0x16 + PS_OPT_ROW / 8)) + 0xA;
+    s16 sp2C = ((0xBA + PS_OPT_ROW - sp30) / 2) + 0xE5 - PS_OPT_ROW / 2;
 
     if (arg0 > 0) {
         func_80020754(0x89, sp2C, 0x16E, sp30);
@@ -77,7 +87,7 @@ void func_82C00658(s16 arg0, s32 arg1) {
             char* sp40;
 
             func_82C0025C(0x90, sp2C + 7, 0x160, 0x20, 0x3C, 0x3C, 0xA0, 0xFF);
-            func_82C0025C(0x90, sp2C + 0x27, 0x160, 0x8C, 0x1E, 0x1E, 0x64, 0xFF);
+            func_82C0025C(0x90, sp2C + 0x27, 0x160, 0x8C + PS_OPT_ROW, 0x1E, 0x1E, 0x64, 0xFF);
 
             if (arg1 != 0) {
                 func_80020928(0x95, sp2C + (D_82C01664 * 0x20) + 0x31);
@@ -87,6 +97,10 @@ void func_82C00658(s16 arg0, s32 arg1) {
 
             func_82C00574(0x168, sp2C + 0x30);
             func_82C00574(0x168, sp2C + 0x50);
+#ifdef PORT
+            func_82C00574(0x168, sp2C + 0x70);
+            func_82C00574(0x168, sp2C + 0x90);
+#endif
 
             gSPDisplayList(gDisplayListHead++, D_8006F630);
 
@@ -117,23 +131,35 @@ void func_82C00658(s16 arg0, s32 arg1) {
             sp40 = func_8002D7C0(NULL, 0, D_82C01660, ((D_82C01666 & 2) != 0) + 2);
             func_8001F1E8(0x1A4 - (func_8001F5B0(0x10, 0, sp40) / 2), sp2C + 0x51, sp40);
 
-            if (D_82C01664 == 2) {
+#ifdef PORT
+            {   /* la hora del dia, igual que las dos de arriba */
+                const s32 m = (gPsTimeMode >= 0 && gPsTimeMode < 4) ? gPsTimeMode : 0;
+                func_8001F324(0xFF, 0xFF, (D_82C01664 == 2) ? 0 : 0xFF, 0xFF);
+                func_8001F1E8(0xBB, sp2C + 0x71, "TIME");
+                func_8001F1E8(0x1A4 - (func_8001F5B0(0x10, 0, kPsTimeNames[m]) / 2), sp2C + 0x71, kPsTimeNames[m]);
+                /* el idioma: por ahora solo ingles */
+                func_8001F324(0xFF, 0xFF, (D_82C01664 == 3) ? 0 : 0xFF, 0xFF);
+                func_8001F1E8(0xBB, sp2C + 0x91, "LANGUAGE");
+                func_8001F1E8(0x1A4 - (func_8001F5B0(0x10, 0, "ENGLISH") / 2), sp2C + 0x91, "ENGLISH");
+            }
+#endif
+            if (D_82C01664 == 2 + (PS_OPT_N - 4)) {
                 var_a2 = 0;
             } else {
                 var_a2 = 0xFF;
             }
 
             func_8001F324(0xFF, 0xFF, var_a2, 0xFF);
-            func_8001F1E8(0xBB, sp2C + 0x71, func_8002D7C0(NULL, 0, D_82C01660, 7));
+            func_8001F1E8(0xBB, sp2C + 0x71 + PS_OPT_ROW, func_8002D7C0(NULL, 0, D_82C01660, 7));
 
-            if (D_82C01664 == 3) {
+            if (D_82C01664 == 3 + (PS_OPT_N - 4)) {
                 var_a2 = 0;
             } else {
                 var_a2 = 0xFF;
             }
 
             func_8001F324(0xFF, 0xFF, var_a2, 0xFF);
-            func_8001F1E8(0xBB, sp2C + 0x91, func_8002D7C0(NULL, 0, D_82C01660, 8));
+            func_8001F1E8(0xBB, sp2C + 0x91 + PS_OPT_ROW, func_8002D7C0(NULL, 0, D_82C01660, 8));
             func_8001F444();
         }
     }
@@ -344,7 +370,20 @@ s16 func_82C0120C(void) {
             D_82C01666 ^= 2;
             break;
 
+#ifdef PORT
         case 2:
+            func_80048B90(2);
+            gPsTimeMode = (gPsTimeMode + 1) & 3;
+            break;
+
+        case 3: /* LANGUAGE: solo ingles por ahora */
+            func_80048B90(2);
+            break;
+
+        case 4:
+#else
+        case 2:
+#endif
             func_80048B90(2);
             if ((func_82C00E10(0) != 0) && (func_82C00E10(1) != 0)) {
                 func_82C01054();
@@ -352,7 +391,11 @@ s16 func_82C0120C(void) {
             }
             break;
 
+#ifdef PORT
+        case 5:
+#else
         case 3:
+#endif
             func_80048B90(0x1D);
             func_82C0115C(D_82C01666);
             sp1E = 1;
@@ -365,6 +408,9 @@ s16 func_82C0120C(void) {
 void func_82C012FC(void) {
     s16 i;
     s16 var_s1 = 0;
+#ifdef PORT
+    const s32 psTimeIn = gPsTimeMode;
+#endif
 
     func_80006C6C(8);
     while (func_80007604() != 0) {
@@ -380,16 +426,19 @@ void func_82C012FC(void) {
     while (var_s1 == 0) {
         func_800290B4();
         if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DUP)) {
-            D_82C01664 = (D_82C01664 + 3) % 4;
+            D_82C01664 = (D_82C01664 + PS_OPT_N - 1) % PS_OPT_N;
             func_80048B90(1);
         } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_DDOWN)) {
-            D_82C01664 = (D_82C01664 + 1) % 4;
+            D_82C01664 = (D_82C01664 + 1) % PS_OPT_N;
             func_80048B90(1);
         } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_A)) {
             var_s1 = func_82C0120C();
         } else if (BTN_IS_PRESSED(gPlayer1Controller, BTN_B)) {
             var_s1 = 2;
             func_80048B90(3);
+#ifdef PORT
+            gPsTimeMode = psTimeIn; /* con B no se guarda nada, como las otras opciones */
+#endif
         }
         func_82C00D98(8, 0, 0, 0);
     }

@@ -105,6 +105,13 @@ unk_D_800AE540_0004* func_8002B700(s32 arg0, s16 arg1, char* arg2, char* arg3) {
         sp20->unk_002 = 0;
         sp20->unk_003 = 1;
 
+#ifdef PORT
+        {   /* el nombre del perfil para el jugador 1: aqui se arma el entrenador en cada modo y entre peleas, igual que
+               cuando el nombre sale del cartucho del Transfer Pak */
+            extern char gPsProfName[12];
+            if (arg0 == 0 && gPsProfName[0]) arg2 = gPsProfName;
+        }
+#endif
         HAL_Strcpy(sp1C->unk_008, arg2);
         HAL_Strcpy(sp20->unk_014, arg2);
         HAL_Strcpy(sp20->unk_220, arg3);

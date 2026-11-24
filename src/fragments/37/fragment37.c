@@ -102,6 +102,10 @@ static unk_func_80027FA0 D_822031E0;
 static unk_func_8002A728 D_822031E8;
 
 #ifdef PORT
+extern s32 gPsHour3DS;   /* en 6A40.c (memoria fija: los fragmentos comparten direcciones) */
+extern s32 gPsBgTest3DS;
+#endif
+#ifdef PORT
 /* PORT: donde estaba GB Tower (el emulador de Game Boy, fuera del port) va ONLINE. El letrero dice ONLINE, la pantalla
  * del Game Boy del fondo trae el simbolo de senal y al elegirlo no se entra a nada: sale un aviso en la caja de texto.
  * Los graficos son propios (tools/port/gen_online_gfx.py) y se ponen sobre lo que se cargo de la ROM. */
@@ -149,6 +153,36 @@ static void ps_online_lcd(u8* bg, s32 variant) {
             }
             v = (u16)(((c[0] * 31 + 127) / 255) << 11 | ((c[1] * 31 + 127) / 255) << 6 | ((c[2] * 31 + 127) / 255) << 1 | 1);
             p[0] = (u8)(v >> 8); p[1] = (u8)v;
+        }
+    }
+}
+#endif
+
+#ifdef PORT
+/* Atardecer: el fondo de dia (320x240 RGBA16 en bloques de 16x16) con el cielo (lo azul de arriba) en degradado de
+ * rosa a naranja, respetando sus nubes, y lo demas mas calido y un poco mas oscuro. */
+static s32 ps_clamp(s32 v, s32 lo, s32 hi) { return v < lo ? lo : v > hi ? hi : v; }
+static void ps_evening(u8* bg) {
+    static const s16 kTop[3] = { 170, 80, 110 }, kHor[3] = { 255, 170, 90 };
+    s32 px, py, k;
+    if (bg == NULL) return;
+    for (py = 0; py < 240; py++) {
+        const s32 t = (py < 130 ? py : 130) * 256 / 130, fy = ps_clamp((140 - py) * 256 / 40, 0, 256);
+        for (px = 0; px < 320; px++) {
+            u8* p = bg + ((py / 16) * 20 + (px / 16)) * 0x200 + ((py % 16) * 16 + (px % 16)) * 2;
+            const u16 v = (u16)(p[0] << 8 | p[1]);
+            const s32 c[3] = { ((v >> 11) & 31) * 255 / 31, ((v >> 6) & 31) * 255 / 31, ((v >> 1) & 31) * 255 / 31 };
+            static const s16 kMul[3] = { 219, 166, 127 };
+            const s32 lum = (c[0] + c[1] + c[2]) / 3, sk = ps_clamp((c[2] - c[0]) * 256 / 40, 0, 256) * fy / 256;
+            const s32 lm = ps_clamp(lum * 256 / 200, 128, 294);
+            s32 o[3];
+            u16 w;
+            for (k = 0; k < 3; k++) {
+                const s32 sc = (kTop[k] * (256 - t) + kHor[k] * t) / 256 * lm / 256;
+                o[k] = ps_clamp(((c[k] * kMul[k] / 256) * (256 - sk) + sc * sk) / 256, 0, 255) * 31 / 255;
+            }
+            w = (u16)(o[0] << 11 | o[1] << 6 | o[2] << 1 | (v & 1));
+            p[0] = (u8)(w >> 8); p[1] = (u8)w;
         }
     }
 }
@@ -878,11 +912,21 @@ void func_82202CB8(void) {
         D_8220314C = D_82203148 = func_8000484C(D_822030F4, 0x12);
     }
 #ifdef PORT
-    if (D_822031E8.unk_00 == 2) {
-        if (D_82203148 != D_8220314C) { ps_online_lcd(D_82203148, 2); ps_online_lcd(D_8220314C, 3); }
-        else ps_online_lcd(D_82203148, 3);
-    } else {
-        ps_online_lcd(D_82203148, D_822031E8.unk_00 == 1 ? 1 : 0);
+    /* PORT: el fondo segun la hora del 3DS (el host la escribe en gPsHour3DS). Solo cambia la imagen, no el avance:
+     * de noche (7 pm a 6 am) el fondo de noche que el juego trae para el final; de tarde (6 a 7 pm) el de dia que
+     * toque, pintado de atardecer. gPsBgTest3DS fuerza un fondo (solo para probar). */
+    {
+        const s32 h = gPsHour3DS;
+        const s32 night = h >= 0 && (h >= 19 || h < 6), evening = h == 18; /* igual que la pantalla libre (gb_roam.inc) */
+        s32 lcd0, lcd1;
+        if (D_822031E8.unk_00 == 2) { lcd0 = 2; lcd1 = 3; }
+        else { lcd0 = lcd1 = D_822031E8.unk_00 == 1 ? 1 : 0; }
+        if (night) { D_8220314C = D_82203148 = func_8000484C(D_822030F4, 2); lcd0 = lcd1 = 3; }
+        else if (evening && D_82203148 != D_8220314C) { D_8220314C = D_82203148; lcd1 = lcd0; } /* sin el cambio a noche */
+        if (gPsBgTest3DS > 0) { D_8220314C = D_82203148 = func_8000484C(D_822030F4, gPsBgTest3DS); }
+        if (D_82203148 != D_8220314C) { ps_online_lcd(D_82203148, lcd0); ps_online_lcd(D_8220314C, lcd1); }
+        else ps_online_lcd(D_82203148, lcd1);
+        if (evening && !night) ps_evening(D_82203148);
     }
 #endif
 }

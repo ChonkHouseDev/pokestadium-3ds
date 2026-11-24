@@ -110,6 +110,10 @@ static s32 D_800AA6C0;
 static MtxF* D_800AA6C8[128]; // PORT: en el N64 ocupa 0x200 bytes (hasta D_800AA8C8); el decomp declaraba 8
 static u8 pad_D_800AA6E8[0x1E0];
 static unk_D_800AA8C8 D_800AA8C8;
+#ifdef PORT
+/* la matriz con la que se esta dibujando el nodo actual (para la entrada japonesa, port/jp/ps_jp_extra.c) */
+MtxF* ps_geo_cur_mtx(void) { return &D_800AA8C8.unk_0000[D_800AA8C8.unk_10A0]; }
+#endif
 static unk_D_800AB970 D_800AB970;
 static s32 D_800ABB00;
 static s32 D_800ABB04;
@@ -488,6 +492,9 @@ void func_8001378C(GraphNode* arg0) {
 
         D_8006F090 = arg;
         func_80013330(arg0);
+#ifdef PORT
+        { extern int gPsGeoText; void ps_geo_text_flush(void); if (gPsGeoText) ps_geo_text_flush(); } /* los textos de esta camara, al final */
+#endif
         D_8006F090 = NULL;
     }
 
@@ -939,7 +946,114 @@ void func_80014D24(GraphNode* arg0) {
     func_80013330(arg0);
 }
 
+#ifdef PORT
+/* Nodo de texto (tipo 0x1C). El motor de este juego crea el nodo con todos sus datos (comando 0x26 de los geo
+ * layouts) pero ya no lo dibuja: aqui solo recorre a sus hijos. El Stadium japones de 1998 si lo dibuja, como
+ * cuadros con textura pegados al modelo, y su escena de entrada lo usa para los nombres de las tarjetas.
+ * Se dibuja igual, con las fuentes de este juego: un cuadro por letra, tenido con el color del nodo.
+ * '\t' centra el resto del renglon en x; '\n' baja un renglon. */
+typedef struct PsTextNode {
+    /* 0x00 */ GraphNode node;
+    /* 0x18 */ s16 font;
+    /* 0x1A */ s16 fontArg;
+    /* 0x1C */ s16 x;
+    /* 0x1E */ s16 y;
+    /* 0x20 */ s16 scaleX; /* por ciento */
+    /* 0x22 */ s16 scaleY;
+    /* 0x24 */ const u8* text;
+    /* 0x28 */ Color_RGBA8_u32 color;
+} PsTextNode;
+s32 func_8001E810(s32 arg0);
+int gPsGeoText; /* 1 mientras corre una escena que usa nodos de texto (port/ps_jp.c) */
+
+#define PS_TEXT_MAX 48
+static struct { Gfx* dl; MtxF* mtx; } sPsText[PS_TEXT_MAX];
+static s32 sPsTextN;
+/* Dibuja los textos apuntados en este cuadro, encima de lo ya dibujado y sin prueba de profundidad. Lo llama la
+   escena despues de recorrer su grafo (la proyeccion de su camara sigue cargada). */
+void ps_geo_text_flush(void) {
+    s32 i;
+    if (sPsTextN == 0) return;
+    gDPPipeSync(gDisplayListHead++);
+    gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
+    gDPSetRenderMode(gDisplayListHead++, G_RM_XLU_SURF, G_RM_XLU_SURF2);
+    gDPSetTexturePersp(gDisplayListHead++, G_TP_PERSP);
+    gSPClearGeometryMode(gDisplayListHead++, G_ZBUFFER | G_CULL_BOTH | G_FOG | G_LIGHTING | G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR);
+    gSPSetGeometryMode(gDisplayListHead++, G_SHADE | G_CULL_BACK);
+    for (i = 0; i < sPsTextN; i++) {
+        gSPMatrix(gDisplayListHead++, (u32)sPsText[i].mtx & 0x1FFFFFFF, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+        gSPDisplayList(gDisplayListHead++, sPsText[i].dl);
+    }
+    gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_OFF);
+    sPsTextN = 0;
+}
+
+static Gfx* ps_text_build(PsTextNode* t) {
+    unk_D_800AC870_sub* set;
+    const u8* p;
+    s32 n = 0, x, y, w, h, lineH;
+    Gfx *dl, *gfx;
+    Vtx* vtx;
+    if (D_800AC870 == NULL) return NULL;
+    func_8001EBE0(t->font, t->fontArg);
+    set = &D_800AC870->unk_00[D_800AC870->unk_50];
+    if (set->unk_08 == NULL || set->unk_04 == NULL || set->unk_00 <= 0 || set->unk_02 <= 0) return NULL;
+    for (p = t->text; *p; p++) if (*p >= 0x20) n++;
+    if (n == 0) return NULL;
+    if (n > 120) n = 120;
+    w = (set->unk_00 * t->scaleX) / 100;
+    h = (set->unk_02 * t->scaleY) / 100;
+    lineH = (set->unk_02 * ((t->scaleY * 11) / 10)) / 100;
+    dl = gfx = func_80005F5C(sizeof(Gfx) * (10 + n * 9));
+    vtx = func_80005F5C(sizeof(Vtx) * 4 * n);
+    gDPPipeSync(gfx++);
+    gSPClearGeometryMode(gfx++, G_LIGHTING);
+    gSPTexture(gfx++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    gDPSetCombineLERP(gfx++, TEXEL0, 0, ENVIRONMENT, 0, TEXEL0, 0, ENVIRONMENT, 0, 0, 0, 0, COMBINED, 0, 0, 0, COMBINED);
+    gDPSetEnvColor(gfx++, t->color.r, t->color.g, t->color.b, t->color.a);
+    x = t->x; y = t->y;
+    for (p = t->text; *p && n > 0; p++) {
+        s32 c = *p;
+        if (c == '\n') { x = t->x; y -= lineH; continue; }
+        if (c == '\t') { /* centrar lo que falta del renglon */
+            const u8* q; s32 total = 0;
+            for (q = p + 1; *q && *q != '\n'; q++) if (*q >= 0x20) total += ((func_8001E78C(set, *q) + D_800AC870->unk_51) * t->scaleX) / 100;
+            x = t->x - total / 2;
+            continue;
+        }
+        if (c < 0x20) continue;
+        func_8001E680(&vtx[0], x, y, 0, 0, 0, 0, 0, 0x7F, 0xFF);
+        func_8001E680(&vtx[1], x, y - h, 0, 0, (set->unk_02 << 5) - 1, 0, 0, 0x7F, 0xFF);
+        func_8001E680(&vtx[2], x + w, y - h, 0, (set->unk_00 << 5) - 1, (set->unk_02 << 5) - 1, 0, 0, 0x7F, 0xFF);
+        func_8001E680(&vtx[3], x + w, y, 0, (set->unk_00 << 5) - 1, 0, 0, 0, 0x7F, 0xFF);
+        gDPLoadTextureBlock(gfx++, (u32)set->unk_08 + func_8001E730(c) * set->unk_00 * set->unk_02, G_IM_FMT_IA, G_IM_SIZ_8b, set->unk_00, set->unk_02, 0,
+                            G_TX_CLAMP, G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        gSPVertex(gfx++, vtx, 4, 0);
+        gSP2Triangles(gfx++, 0, 1, 2, 0, 0, 2, 3, 0);
+        vtx += 4;
+        x += ((func_8001E78C(set, c) + D_800AC870->unk_51) * t->scaleX) / 100;
+        n--;
+    }
+    gSPEndDisplayList(gfx++);
+    return dl;
+}
+#endif
+
 void func_80014D50(GraphNode* arg0) {
+#ifdef PORT
+    PsTextNode* t = (PsTextNode*)arg0;
+    if (gPsGeoText && t->text != NULL) {
+        Gfx* dl = ps_text_build(t);
+        if (dl != NULL && sPsTextN < PS_TEXT_MAX) {
+            /* En el motor japones el texto no se dibuja aqui: se apunta en su capa y sale despues de la geometria.
+               Este motor dibuja en el orden del recorrido, y lo que venia despues tapaba parte de los nombres. Se apunta
+               con su matriz y se dibuja al final (ps_geo_text_flush). */
+            sPsText[sPsTextN].dl = dl;
+            sPsText[sPsTextN].mtx = D_800AA8C8.unk_1000[D_800AA8C8.unk_10A0];
+            sPsTextN++;
+        }
+    }
+#endif
     func_80013330(arg0);
 }
 

@@ -137,8 +137,10 @@ typedef struct { u32 slot; u32 target; } PsJumpSlot;
 extern const PsJumpSlot gPsJumpSlots[];
 extern const u32 gPsJumpSlotsCount;
 
+int ps_jp_owns(u32 addr); /* fragments de la ROM japonesa (port/ps_jp.c): mandan sobre los del juego mientras estan cargados */
 uintptr_t Memmap_GetFragmentVaddr(void* p) {
     u32 addr = (u32)(uintptr_t)p;
+    if (addr >= 0x81000000u && addr < 0x90000000u && ps_jp_owns(addr)) return ps_orig_Memmap_GetFragmentVaddr(p);
     for (u32 i = 0; i < gPsJumpSlotsCount; i++) {
         if (gPsJumpSlots[i].slot == addr) { addr = gPsJumpSlots[i].target; break; }
     }

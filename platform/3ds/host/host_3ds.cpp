@@ -1,3 +1,4 @@
+#include <time.h>
 // Pokemon Stadium 3DS - host (little-endian): carga el juego (bloque ARM big-endian BE8), le da
 // servicios del 3DS y dibuja con el interprete Fast3D de libultraship + el backend citro3d del port
 // de Mario Kart 64 3DS (EstebanPdN).
@@ -11,6 +12,7 @@ extern "C" void PsSkinSetRetainFog3DS(bool);
 extern "C" int gPsFbOrient3DS;
 extern "C" unsigned long gPsFbCopies3DS;
 extern "C" unsigned long gPsFbStats3DS[4];
+extern "C" uint32_t gPsFbCreated3DS, gPsFbReused3DS;
 extern "C" int gPsFbStage3DS;
 extern "C" unsigned long gPsFbInval3DS;
 extern "C" unsigned long long gPsRetainStats3DS[6];
@@ -31,7 +33,21 @@ extern "C" unsigned int gPsBumpOp3DS[256];
 extern "C" void PsSkinSetRange3DS(int, int);
 extern "C" void PsSkinFrame3DS();
 #include <3ds.h>
+#include <stdexcept>
+#include <citro3d.h>
 extern "C" u32 host_flag(const char* name);
+#ifdef PS_BLACKBOX
+extern "C" { static void ps_capture_now(void); }
+static void ps_box_fatal_begin(void);
+static void ps_box_fatal_line(const char* t);
+extern "C" { static void ps_box_stk_lines(void); }
+extern "C" { char PsAddrTag3DS(u32 a, u32* rom); extern volatile u32 gPsBadStk3DS[6], gPsBadStkN3DS, gPsBadStkRes3DS, gPsBadStkSet3DS; }
+extern "C" { extern volatile uint32_t gPsBoxCmd[4][3]; extern volatile uint32_t gPsBoxCmdN; extern volatile u32 gPsBadPtrN3DS, gPsBadPtr3DS, gPsBadPtrCmd3DS; }
+#endif
+extern "C" int gPsRectLog3DS;
+extern "C" { extern volatile u32 gPsTriNow3DS, gPsTriLast3DS, gPsSkipDraw3DS; }
+extern "C" uint32_t gPsBadRetain3DS, gPsSlot0Fallback3DS, gPsTmplFallback3DS; extern "C" uint64_t gPsRetainWhy3DS[8];
+extern "C" { extern bool gPsSkinActive3DS, gPsSkinLit3DS, gPsRetainNoDraw3DS; extern void* gPsRetainCaptureDst3DS; }
 extern "C" int gPsTevLog3DS; // sklog.txt: entradas del combinador (gfx_citro3d)
 #include <sys/stat.h>
 #include <dirent.h>
@@ -40,6 +56,8 @@ extern "C" int gPsTevLog3DS; // sklog.txt: entradas del combinador (gfx_citro3d)
 #include <cstdio>
 #include <cstdlib>
 #include <malloc.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #include <cstring>
 #include <memory>
 #include <unordered_map>
@@ -167,12 +185,22 @@ static void hook_backend_timing(void) {
 static std::shared_ptr<Fast::Interpreter> sInterp;
 static const std::unordered_map<Mtx*, MtxF> sNoReplacements;
 static u32 sFrames;
+struct TexState { u32 hash; u32 frame; };
+static std::unordered_map<const u8*, TexState> sTexHash; // texturas de la memoria del juego que se vigilan
 static u32 sTexFaults; // cuadros que no cupieron en la cache de texturas
+extern "C" uint32_t gPsFenceWhy3DS[4]; // esperas al GPU para reusar texturas: ok, sin cuadro, sin destino, fallo
+static u32 sFreed[8][2]; static volatile u32 sFreedN; static u32 sFlushes; // rangos grandes que solto el juego (cambio de modo) // limpiezas completas al cambiar de modo
+static char sTexFaultWhy[48]; // el ultimo: por que, cuantas texturas y en que cuadro (caja negra)
+static u32 sGpuFaults; // cuadros que no cupieron en el bufer de comandos del GPU
 static u64 sTAudioHle;
 static u32 sAudioUnder, sAudioDrops2, sAudioFreqSeen;
 static u64 sAudioSamplesRep;
 static u32 sExcTraps, sExcLowRam;
 static volatile bool sWatchQuit;
+// HOME / suspension: mientras la app esta en segundo plano el juego no dibuja; los vigilantes no deben contarlo
+// como bloqueo ni tocar la pantalla. sAptExiting: el sistema pidio cerrar (cerrar desde el menu HOME).
+static volatile bool sAptPaused, sAptExiting;
+static aptHookCookie sAptCookie;
 static const char* sExitReason = "el juego termino";
 
 // ---------------- compilacion de diagnostico (PS_DIAG=1 build_3ds.sh) ----------------
@@ -266,7 +294,18 @@ static RecursiveLock sLogLock, sFileLock;
 static char sLogRing[128 * 1024], sLogOut[128 * 1024];
 static u32 sLogLen, sLogDropped;
 static volatile bool sLogNoStdout; // el vigilante lo enciende al ver un bloqueo: stdout (red) puede ser lo trabado
+// Sin PS_LOGS=1 no hay registro de ningun tipo: ni archivo en la SD, ni salida a la terminal de 3dslink, ni red al
+// salir, ni reportes en pantalla. Solo queda la caja negra (PS_BLACKBOX=1), que escribe directo a la pantalla de abajo.
+#ifdef PS_LOGS
+static constexpr bool kLogs = true;
+// la repeticion convierte en el hilo principal (no en el del juego): con listas de 32 saltos (Articuno) la pila
+// de 32 KB no alcanzaba
+extern "C" { u32 __stacksize__ = 512 * 1024; }
+#else
+static constexpr bool kLogs = false;
+#endif
 static void log_store(const char* b) {
+    if (!kLogs) return;
     const u32 n = (u32)strlen(b);
     RecursiveLock_Lock(&sLogLock);
     if (sLogLen + n <= sizeof sLogRing) { memcpy(sLogRing + sLogLen, b, n); sLogLen += n; }
@@ -308,13 +347,25 @@ static void ring_add(const char* s) {
     }
 }
 
+static int sLinkSock = -1;
+static void link_diag_init(void) {
+    if (!kLogs) return;
+    if (!__3dslink_host.s_addr) return;
+    void* b = memalign(0x1000, 0x80000);
+    if (!b) return;
+    if (R_FAILED(socInit((u32*)b, 0x80000))) { free(b); return; }
+    sLinkSock = link3dsConnectToHost(false, false);
+}
 static void logf(const char* fmt, ...) {
+    if (!kLogs) return;
     char buf[512];
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
     ring_add(buf);
+    // lanzado con "3dslink -s": lo del cierre ([apt], [host]) se ve tambien en la terminal de la PC
+    if (sLinkSock >= 0 && (!strncmp(buf, "[apt]", 5) || !strncmp(buf, "[host]", 6))) send(sLinkSock, buf, strlen(buf), 0);
     {
         log_store(buf); // las dos compilaciones: el vigilante del nucleo 1 escribe el registro en la SD
         if (!sLogNoStdout) {
@@ -428,6 +479,7 @@ static void diag_summary(const char* reason) {
 }
 
 extern "C" void PsLog3DS(const char* fmt, ...) {
+    if (!kLogs) return;
     char buf[512];
     va_list ap;
     va_start(ap, fmt);
@@ -473,7 +525,43 @@ static const u8* rom_block(u32 blk) {
     sRomTags[victim].used = ++sRomTick;
     return p;
 }
+// Segunda ROM (opcional): Pokemon Stadium japones de 1998, para la entrada de batalla original. La pone el usuario
+// en la SD; si no esta, todo sigue igual. Se pide con el bit 30 de la direccion (PS_ROM_JP en port/ps_jp.c).
+#define ROM_JP_PATH "sdmc:/3ds/pokestadium/baserom_jp.z64"
+#define ROM_JP_BIT 0x40000000u
+static FILE* sRomJp;
+static int sRomJpState; // 0 sin intentar, 1 abierta, -1 no esta
+static u32 rom_jp_read(u32 off, void* dst, u32 size) {
+    if (!sRomJpState) {
+        sRomJp = ps_romfs() ? fopen("romfs:/baserom_jp.z64", "rb") : nullptr; // dentro del .cia (lo arma el usuario con su ROM)
+        if (!sRomJp) sRomJp = fopen(ROM_JP_PATH, "rb");
+        sRomJpState = sRomJp ? 1 : -1;
+        if (sRomJp) { fseek(sRomJp, 0, SEEK_END); const long n = ftell(sRomJp); logf("ROM japonesa: %s (%ld MB)\n", ROM_JP_PATH, n >> 20); if (n != 0x1000000) { fclose(sRomJp); sRomJp = nullptr; sRomJpState = -1; logf("ROM japonesa: no mide 16 MB, se ignora\n"); } }
+        else logf("ROM japonesa: no esta (%s)\n", ROM_JP_PATH);
+    }
+    if (!sRomJp || off + size > 0x1000000u) return 0;
+    if (fseek(sRomJp, off, SEEK_SET) != 0) return 0;
+    return (u32)fread(dst, 1, size, sRomJp);
+}
+// Paquete de idioma (lang_xx.bin, lo arma el usuario): dentro del .cia/.3dsx o en la SD. Lo elige la pantalla Profile.
+#define ROM_LANG_BIT 0x20000000u
+static FILE* sLangF;
+static __attribute__((unused)) bool lang_open(const char* code) { // "" = ingles (sin paquete)
+    if (sLangF) { fclose(sLangF); sLangF = nullptr; }
+    if (!code || !code[0]) return true;
+    char p[96];
+    snprintf(p, sizeof p, "romfs:/lang_%s.bin", code);
+    sLangF = ps_romfs() ? fopen(p, "rb") : nullptr;
+    if (!sLangF) { snprintf(p, sizeof p, "sdmc:/3ds/pokestadium/lang_%s.bin", code); sLangF = fopen(p, "rb"); }
+    return sLangF != nullptr;
+}
+static u32 lang_read(u32 off, void* dst, u32 size) {
+    if (!sLangF || fseek(sLangF, off, SEEK_SET) != 0) return 0;
+    return (u32)fread(dst, 1, size, sLangF);
+}
 u32 host_rom_read(u32 off, void* dst, u32 size) {
+    if (off & ROM_JP_BIT) return rom_jp_read(off & ~ROM_JP_BIT, dst, size);
+    if (off & ROM_LANG_BIT) return lang_read(off & ~ROM_LANG_BIT, dst, size);
     u64 t = svcGetSystemTick();
     u32 done = 0;
     if (!sRomCache && size <= 0x10000) { sRomCache = (u8*)malloc(ROMC_BLOCK * ROMC_COUNT); }
@@ -501,6 +589,10 @@ void host_mem_event(u32 kind, u32 addr, u32 size) {
     }
     STAGE(ST_MEMEV);
     GfxConvertMemEvent(kind, addr, size);
+    // el juego solto un pedazo grande de su memoria (salir de un modo, empezar o terminar una pelea): todo lo que el
+    // port tenia guardado de lo que habia ahi (modelos horneados y texturas) se tira completo en el siguiente cuadro.
+    // Al volver se carga de nuevo lo que se vaya viendo. Abrir/cerrar la ficha o que salga un Pokemon nuevo suelta menos de 2 MB y no entra aqui.
+    if (kind == 5 && size >= 2048u * 1024u && sFreedN < 8) { sFreed[sFreedN][0] = addr; sFreed[sFreedN][1] = addr + size; sFreedN++; }
 }
 u32 host_rom_read_game(u32 off, void* dst, u32 size) {
     STAGE(ST_ROM);
@@ -578,17 +670,84 @@ static void intro_keys(void) {
     }
 }
 
+#if defined(PS_BLACKBOX) && !defined(PS_BOXLITE)
+// Con caja negra la pantalla de abajo es solo de la caja: lo que dibuja el juego ahi (cartuchos, batalla, perfil) no
+// se presenta, para que si la consola se congela se quede a la vista lo ultimo que escribio la caja.
+static inline void ps_no_swap(gfxScreen_t, bool) {}
+#define gfxScreenSwapBuffers ps_no_swap
+#endif
+
+// La hora del dia del juego: la del 3DS (Clock) o la que se escogio en Options (Day, Sunset, Night). La opcion vive en
+// el juego (gPsTimeMode) y se guarda en la SD (hora.cfg). horaprueba.txt = hora, para probar en el emulador.
+static int ps_hour_now(void) {
+    static int sH = -2, sLoaded, sSaved = -1;
+    if (sH == -2) { const u32 v = host_flag("horaprueba"); sH = v < 24 ? (int)v : -1; }
+    int mode = 0;
+    if (BLOB_TIMEMODE) {
+        if (!sLoaded) {
+            sLoaded = 1;
+            FILE* f = fopen("sdmc:/3ds/pokestadium/hora.cfg", "rb");
+            int v = 0;
+            if (f) { if (fscanf(f, "%d", &v) != 1) v = 0; fclose(f); }
+            if (v < 0 || v > 3) v = 0;
+            *(volatile u32*)BLOB_TIMEMODE = __builtin_bswap32((u32)v);
+            sSaved = v;
+        }
+        mode = (int)__builtin_bswap32(*(volatile u32*)BLOB_TIMEMODE);
+        if (mode < 0 || mode > 3) mode = 0;
+        if (mode != sSaved) {
+            FILE* f = fopen("sdmc:/3ds/pokestadium/hora.cfg", "wb");
+            if (f) { fprintf(f, "%d\n", mode); fclose(f); }
+            sSaved = mode;
+        }
+    }
+    if (mode == 1) return 12;
+    if (mode == 2) return 18;
+    if (mode == 3) return 22;
+    if (sH >= 0) return sH;
+    const time_t tt = time(nullptr); struct tm tmv; localtime_r(&tt, &tmv);
+    return tmv.tm_hour;
+}
 #include "gb_saves.inc"
+#if defined(PS_BLACKBOX) && !defined(PS_BOXLITE)
+#undef gfxScreenSwapBuffers
+#endif
 
 u32 host_pump(void) {
     STAGE(ST_PUMP);
     gb_tick();
     gb_bat_tick();
+    pf_kb_run(); // el teclado del nombre en Profile (si se pidio)
     if (!aptMainLoop()) { sExitReason = "aptMainLoop"; return 0; }
+#ifdef PS_BLACKBOX
+    { static int sCapAt = -2; if (sCapAt == -2) sCapAt = (int)host_flag("capturaprueba");
+      if (sCapAt > 0 && (int)sFrames >= sCapAt) { sCapAt = -1; ps_capture_now(); } }
+#endif
+    { // rectlog.txt = cuadro: desde ahi se anotan en log.txt los siguientes 600 rectangulos con textura (solo con logs)
+      static int sRectAt = -2; if (sRectAt == -2) sRectAt = (int)host_flag("rectlog");
+      if (sRectAt > 0 && (int)sFrames >= sRectAt) { sRectAt = -1; gPsRectLog3DS = 600; logf("[rect] desde el cuadro %lu\n", (unsigned long)sFrames); } }
+    { // fbvigia.txt = cuadro: desde ahi, 300 cuadros, se anota si la memoria de las dos imagenes del juego (640x480) cambia
+      // fuera del dibujo (el juego escribiendo directo): por franjas de 40 renglones, izquierda (x<120) y derecha (x>=520)
+      static int sFbAt = -2, sFbLeft = 0; static u32 sFbH[2][12][2];
+      if (sFbAt == -2) sFbAt = (int)host_flag("fbvigia");
+      if (sFbAt > 0 && (int)sFrames >= sFbAt) { sFbAt = -1; sFbLeft = 300; }
+      if (sFbLeft > 0) {
+          sFbLeft--;
+          static const u32 kFb[2] = { 0x0AA7F000u, 0x0A9E8FC0u };
+          for (int f = 0; f < 2; f++) for (int b = 0; b < 12; b++) for (int side = 0; side < 2; side++) {
+              u32 h = 2166136261u;
+              for (int y = b * 40; y < b * 40 + 40; y++) {
+                  const u32* row = (const u32*)(kFb[f] + y * 1280 + (side ? 1040 : 0));
+                  for (int x = 0; x < 60; x++) h = (h ^ row[x]) * 16777619u;
+              }
+              if (sFbH[f][b][side] && sFbH[f][b][side] != h) logf("[fbvigia] cuadro %lu imagen %d franja %d %s cambio\n", (unsigned long)sFrames, f, b, side ? "der" : "izq");
+              sFbH[f][b][side] = h;
+          }
+      } }
     if (!sWindow.IsRunning()) { sExitReason = "ventana cerrada"; return 0; }
     hidScanInput();
     u32 held = hidKeysHeld();
-    if ((held & KEY_START) && (held & KEY_SELECT)) { sExitReason = "START+SELECT"; return 0; } // salir
+    if (kDiag && (held & KEY_START) && (held & KEY_SELECT)) { sExitReason = "START+SELECT"; return 0; } // salir (solo diagnostico)
     intro_keys();
     return 1;
 }
@@ -597,6 +756,16 @@ u32 host_pump(void) {
 void host_read_pad(u8* pads) {
     STAGE(ST_PAD);
     u32 k = hidKeysHeld();
+    // Prueba del cuelgue: L + R juntos y X / Y / B prenden o apagan el envio al GPU de un tipo de dibujo
+    // (X: modelos con huesos, Y: geometria nativa, B: dibujos planos). Mientras L+R esten presionados el juego no
+    // recibe botones. Lo que este apagado sale en el aviso de "GPU busy" si se vuelve a trabar.
+    if ((k & KEY_L) && (k & KEY_R)) {
+        const u32 d = hidKeysDown();
+        if (d & KEY_X) gPsSkipDraw3DS ^= 1u;
+        if (d & KEY_Y) gPsSkipDraw3DS ^= 2u;
+        if (d & KEY_B) gPsSkipDraw3DS ^= 4u;
+        k = 0;
+    }
     circlePosition c;
     hidCircleRead(&c);
     u16 b = 0;
@@ -728,7 +897,10 @@ static void dump_cleanup(void) {
 
 static bool sReplayMode = false; // repeticion: sin saltar cuadros (para medir igual)
 bool gPsDebtDecay3DS = false; // perdonar atraso: el juego se quedaba atras del audio
+extern "C" void host_dbg_line(const char* s) { logf("%s", s); }
+extern const uint8_t* gGfxConvertNotScreen;
 void host_gfx_task(const u8* task) {
+    gGfxConvertNotScreen = BLOB_NOT_SCREEN ? (const uint8_t*)(uintptr_t)__builtin_bswap32(*(const volatile u32*)BLOB_NOT_SCREEN) : nullptr;
     STAGE(ST_GFX);
     u32 dl = be32(task + 48); // OSTask.t.data_ptr
     // Picos: si entre una tarea de graficos y la siguiente pasaron mas de 150 ms, se anota en
@@ -807,13 +979,23 @@ void host_gfx_task(const u8* task) {
         const bool offs = !sReplayMode && behind && GfxConvertScanOffscreen(dl, &scanW);
         if (behind && offs) sSkipNo[0]++;
         if (behind && !offs && sSkipRun >= maxRun) sSkipNo[3]++;
-        if (!sReplayMode && behind && sSkipRun < maxRun && !offs) {
+        // Al terminar la escena del VS japones no se salta ningun cuadro por un rato: la pantalla que sigue pone parte
+        // de su estado de dibujo solo en sus primeros cuadros, y si justo esos se saltaban (venimos atrasados por la
+        // carga) se quedaba con el estado de la escena y salia blanquecina.
+        static bool sJpWas;
+        static u32 sNoSkipUntil;
+        const bool jpOn = BLOB_JP_ON && intro_be(BLOB_JP_ON) != 0;
+        if (sJpWas && !jpOn) sNoSkipUntil = (u32)sFrames + 45;
+        sJpWas = jpOn;
+        if (!sReplayMode && behind && sSkipRun < maxRun && !offs && (u32)sFrames >= sNoSkipUntil) {
             const u32 n = GfxConvertLastScanCount();
             // y solo en escenas 3D (muchos triangulos): los menus 2D dibujan por partes encima de lo anterior
             // (cambian un panel en uno o dos cuadros) y ademas son ligeros, no hace falta saltarlos
             // ... salvo los que tapan toda la pantalla con rectangulos opacos (la pantalla de titulo): se dibujan completos
+            // (los que tapan toda la pantalla solo si son iguales al anterior: al cerrar el panel de la renta el juego
+            // repone el fondo en dos cuadros asi y luego solo dibuja la lista; si se saltaba el ultimo, el panel se quedaba)
             same = sPrevScan && ((GfxConvertLastScanTris() >= 64 && ((n + n / 32 >= sPrevScan && n <= sPrevScan + sPrevScan / 32) || GfxConvertLastScanClears())) ||
-                                 GfxConvertLastScanCovers());
+                                 (GfxConvertLastScanCovers() && n == sPrevScan));
             if (!same) sSkipNo[GfxConvertLastScanTris() < 64 ? 1 : 2]++;
             sPrevScan = n;
         } else if (!sReplayMode) {
@@ -827,6 +1009,58 @@ void host_gfx_task(const u8* task) {
         } else {
             sSkipRun = 0;
         }
+        { // la hora del 3DS para el juego (fondo del mapa); fondoprueba.txt fuerza un fondo (para probar)
+          static int sBg = -2; if (sBg == -2) { const u32 v = host_flag("fondoprueba"); sBg = v < 64 ? (int)v : 0; }
+          if (BLOB_HOUR) *(volatile u32*)BLOB_HOUR = __builtin_bswap32((u32)ps_hour_now());
+          if (BLOB_BGTEST) *(volatile u32*)BLOB_BGTEST = __builtin_bswap32((u32)sBg); }
+        // Pantalla gigante del estadio (fragment62): la imagen de la pelea (gb_jumbo_render), copiada a lo
+        // mas 5 veces por segundo y solo si cambio. Se borran sus texturas del cache para que el juego vea la nueva.
+#if defined(BLOB_JUMBO) && defined(BLOB_JUMBO_ON) && defined(BLOB_BAT_ON)
+        {
+            static u64 sJbAt;
+            static u32 sJbSum;
+            const u64 nowJ = svcGetSystemTick();
+            const bool inBat = BLOB_BAT_ON && intro_be(BLOB_BAT_ON) != 0;
+            if (!inBat) { if (*(volatile u32*)BLOB_JUMBO_ON) *(volatile u32*)BLOB_JUMBO_ON = 0; sJbSum = 0; }
+            else if (sJbReady && nowJ - sJbAt > 268111856ull / 5) { // la imagen de la pelea que arma gb_jumbo_render
+                sJbAt = nowJ;
+                const u8* fb = sJbImg;
+                {
+                    const u32 sum = sJbSerial;
+                    if (sum != sJbSum) {
+                        sJbSum = sum;
+                        u8* tex = (u8*)BLOB_JUMBO;
+                        for (int x = 0; x < 320; x++) { // por columna, como esta guardada la pantalla
+                            const u8* col = fb + x * 240 * 3;
+                            for (int y = 0; y < 240; y++) {
+                                const u8* q = col + (239 - y) * 3; // B, G, R
+                                const u16 c = (u16)((q[2] >> 3) << 11 | (q[1] >> 3) << 6 | (q[0] >> 3) << 1 | 1);
+                                u8* d = tex + (((y >> 5) * 10 + (x >> 5)) * 1024 + (y & 31) * 32 + (x & 31)) * 2;
+                                d[0] = (u8)(c >> 8); d[1] = (u8)c;
+                            }
+                        }
+                        for (int t = 0; t < 80; t++) sInterp->TextureCacheDelete(tex + t * 2048);
+                        *(volatile u32*)BLOB_JUMBO_ON = __builtin_bswap32(1u);
+                    }
+                }
+            }
+        }
+#endif
+        { // aeprobe.txt = 1: cada 30 cuadros, lo que el juego tiene en D_800AE540 (equipos de los jugadores y registrados)
+          static int sAe = -2; if (sAe == -2) sAe = (int)host_flag("aeprobe");
+          if (sAe == 1 && BLOB_AE540 && sFrames % 30 == 0) {
+              const u8* a = (const u8*)BLOB_AE540;
+              char b[400]; int k = snprintf(b, sizeof b, "[ae] %lu gs %lx h %02x%02x%02x%02x", (unsigned long)sFrames, (unsigned long)(BLOB_GAME_STATE ? intro_be(BLOB_GAME_STATE) : 0), a[0], a[1], a[2], a[3]);
+              for (int p = 0; p < 4; p++) { const u8* q = a + 4 + p * 0x21C; k += snprintf(b + k, sizeof b - k, " | P%d %02x%02x%02x %lx:", p, q[0], q[1], q[2], (unsigned long)intro_be((u32)(uintptr_t)(q + 0x18))); for (int j = 0; j < 6; j++) k += snprintf(b + k, sizeof b - k, "%d,", q[0x1C + j * 0x54]); }
+              for (int p = 0; p < 4; p++) { const u8* q = a + 0x874 + p * 0x248; k += snprintf(b + k, sizeof b - k, " | R%d %02x%02x%02x:", p, q[1], q[2], q[3]); for (int j = 0; j < 6; j++) k += snprintf(b + k, sizeof b - k, "%d,", q[0x28 + j * 0x54]); }
+              k += snprintf(b + k, sizeof b - k, " | t"); for (int j = 0x11E4; j < 0x11F8; j++) k += snprintf(b + k, sizeof b - k, "%02x", a[j]);
+              logf("%s\n", b);
+          } }
+        { // framelog.txt = cuadro: desde ahi, 400 cuadros, una linea por cuadro (comandos, triangulos, si se salto)
+          static int sFlAt = -2, sFlLeft = 0;
+          if (sFlAt == -2) sFlAt = (int)host_flag("framelog");
+          if (sFlAt > 0 && (int)sFrames >= sFlAt) { sFlAt = -1; sFlLeft = 400; }
+          if (sFlLeft > 0) { sFlLeft--; logf("[cuadro] %lu cmds %lu tri %lu atras %d %s\n", (unsigned long)sFrames, (unsigned long)GfxConvertLastScanCount(), (unsigned long)GfxConvertLastScanTris(), (int)behind, skipFrame ? "SALTADO" : ""); } }
         // El juego manda cuadros al ritmo del VI: un atraso viejo (una carga) no se recupera nunca y se
         // quedaba saltando 2 de cada 3 cuadros aunque sobrara tiempo. Se perdona una parte del atraso
         // en cada cuadro; si de verdad vamos lentos, el atraso vuelve a crecer y se sigue saltando.
@@ -1182,11 +1416,22 @@ void host_gfx_task(const u8* task) {
     // Solo en cuadros que se dibujan, una vez por textura, y con muestreo: texturas chicas completas,
     // grandes por 64 palabras repartidas + inicio y final (antes costaba ~14 ms por cuadro).
     {
-        struct TexState { u32 hash; u32 frame; };
-        static std::unordered_map<const u8*, TexState> sTexHash;
         static u32 sInval;
         u64 th0 = svcGetSystemTick();
         struct HashTimer { u64 t0; ~HashTimer() { sTTexHash += svcGetSystemTick() - t0; } } hashTimer{ th0 };
+        // memoria grande que solto el juego (salir de un modo, empezar o terminar una pelea): las texturas que estaban ahi
+        // se borran del cache una por una, igual que cuando cambia su contenido (los modelos ya los tira el aviso mismo)
+        if (sFreedN) {
+            const u32 n = sFreedN;
+            for (auto it = sTexHash.begin(); it != sTexHash.end();) {
+                const u32 a = (u32)it->first;
+                bool hit = false;
+                for (u32 r = 0; r < n && !hit; r++) hit = a >= sFreed[r][0] && a < sFreed[r][1];
+                if (hit && !GfxConvertIsGpuTarget(it->first)) { sInterp->TextureCacheDelete(it->first); it = sTexHash.erase(it); } else ++it;
+            }
+            sFreedN = 0;
+            sFlushes++;
+        }
         for (const u8* p : GfxConvertTextures()) {
             u32 a = (u32)p;
             if (a < BLOB_BASE || a >= BLOB_BASE + BLOB_SIZE) continue;
@@ -1208,7 +1453,11 @@ void host_gfx_task(const u8* task) {
             it->second.frame = sFrames;
             if (it->second.hash != h) { it->second.hash = h; sInterp->TextureCacheDelete(p); sInval++; }
         }
-        if ((sFrames % 300) == 0) { logf("[tex] %lu invalidadas, %lu rastreadas\n", (unsigned long)sInval, (unsigned long)sTexHash.size()); sInval = 0; }
+        if ((sFrames % 300) == 0) {
+            logf("[tex] %lu invalidadas, %lu rastreadas; imagenes GPU: %lu creadas, %lu reusadas; VRAM libre %lu KB\n", (unsigned long)sInval, (unsigned long)sTexHash.size(),
+                 (unsigned long)gPsFbCreated3DS, (unsigned long)gPsFbReused3DS, (unsigned long)(vramSpaceFree() / 1024));
+            sInval = 0;
+        }
     }
     u64 t2 = svcGetSystemTick();
     PsSkinFrame3DS();
@@ -1217,22 +1466,83 @@ void host_gfx_task(const u8* task) {
     sTWait += sRenderer.GetFrameBeginWaitMicroseconds();
     u64 t3 = svcGetSystemTick();
     stage_set(ST_GFX_RUN);
+    {   // La escena del VS japones deja su estado de dibujo (luces, niebla, colores y modos) y la pantalla que sigue usa
+        // lo que encuentre: se guarda al empezar la escena y se repone al terminar, como si la escena no hubiera pasado.
+        static bool was;
+        struct Keep {
+            decltype(sInterp->mRdp->env_color) env, prim, fog, blend, fill;
+            uint32_t oml, omh, geo, xgeo; uint64_t comb; uint8_t lod;
+            decltype(sInterp->mRsp->fog_mul) fogMul, fogOff;
+            decltype(sInterp->mRsp->texture_scaling_factor) tsf;
+            decltype(sInterp->mRsp->current_lights) lights;
+            decltype(sInterp->mRsp->lookat) lookat;
+            uint8_t numLights;
+        };
+        static Keep k;
+        const bool on = BLOB_JP_ON && intro_be(BLOB_JP_ON) != 0;
+        if (on != was) {
+            auto* r = sInterp->mRsp; auto* d = sInterp->mRdp;
+            logf("[jp] dibujo %s: luces %d amb %d env %d %d %d %d prim %d %d %d %d niebla %d %d %d %d geo %08lx oml %08lx\n", on ? "antes" : "despues", (int)r->current_num_lights,
+                 r->current_num_lights > 0 ? r->current_lights[r->current_num_lights - 1].l.col[0] : -1,
+                 d->env_color.r, d->env_color.g, d->env_color.b, d->env_color.a, d->prim_color.r, d->prim_color.g, d->prim_color.b, d->prim_color.a,
+                 d->fog_color.r, d->fog_color.g, d->fog_color.b, d->fog_color.a, (unsigned long)r->geometry_mode, (unsigned long)d->other_mode_l);
+            if (on) {
+                k.env = d->env_color; k.prim = d->prim_color; k.fog = d->fog_color; k.blend = d->blend_color; k.fill = d->fill_color;
+                k.oml = d->other_mode_l; k.omh = d->other_mode_h; k.comb = d->combine_mode; k.lod = d->prim_lod_fraction;
+                k.geo = r->geometry_mode; k.xgeo = r->extra_geometry_mode; k.fogMul = r->fog_mul; k.fogOff = r->fog_offset; k.tsf = r->texture_scaling_factor;
+                memcpy(&k.lights, &r->current_lights, sizeof k.lights); memcpy(&k.lookat, &r->lookat, sizeof k.lookat); k.numLights = r->current_num_lights;
+            } else {
+                d->env_color = k.env; d->prim_color = k.prim; d->fog_color = k.fog; d->blend_color = k.blend; d->fill_color = k.fill;
+                d->other_mode_l = k.oml; d->other_mode_h = k.omh; d->combine_mode = k.comb; d->prim_lod_fraction = k.lod;
+                r->geometry_mode = k.geo; r->extra_geometry_mode = k.xgeo; r->fog_mul = k.fogMul; r->fog_offset = k.fogOff; r->texture_scaling_factor = k.tsf;
+                memcpy(&r->current_lights, &k.lights, sizeof k.lights); memcpy(&r->lookat, &k.lookat, sizeof k.lookat); r->current_num_lights = k.numLights;
+                r->lights_changed = true;
+            }
+        }
+        was = on;
+    }
     bool texFault = false;
+    gPsSkinActive3DS = false; gPsSkinLit3DS = false; gPsRetainNoDraw3DS = false; gPsRetainCaptureDst3DS = nullptr;
     try {
         sInterp->Run(reinterpret_cast<::Gfx*>(nativeDl), sNoReplacements);
     } catch (const std::bad_alloc& e) {
         // Un cuadro con mas texturas distintas de las que caben en la cache (o sin memoria para una): antes esto
         // cerraba el juego. Se deja el cuadro como va, se vacia la cache y el siguiente empieza limpio.
-        if (sTexFaults++ < 5) logf("[tex] cuadro %lu incompleto: %s (%lu texturas distintas en la lista)\n", (unsigned long)sFrames, e.what(), (unsigned long)GfxConvertTextures().size());
+        snprintf(sTexFaultWhy, sizeof sTexFaultWhy, "%.24s, %lu tex, c%lu", e.what(), (unsigned long)GfxConvertTextures().size(), (unsigned long)sFrames);
+        if (sTexFaults++ < 5) logf("[tex] cuadro %lu incompleto: %s (%lu texturas distintas en la lista; esperas ok %lu, sin cuadro %lu, sin destino %lu, fallo %lu)\n", (unsigned long)sFrames, e.what(), (unsigned long)GfxConvertTextures().size(),
+                                   (unsigned long)gPsFenceWhy3DS[0], (unsigned long)gPsFenceWhy3DS[1], (unsigned long)gPsFenceWhy3DS[2], (unsigned long)gPsFenceWhy3DS[3]);
         sInterp->mBufVboLen = 0;
         sInterp->mBufVboNumTris = 0;
         sInterp->mRdp->textures_changed[0] = sInterp->mRdp->textures_changed[1] = true;
         texFault = true;
+    } catch (const std::length_error& e) {
+        // El cuadro no cupo en el bufer de comandos del GPU (o en el de vertices): antes esto cerraba el juego. Se deja
+        // el cuadro como va y el siguiente empieza limpio.
+        if (sGpuFaults++ < 5) logf("[gpu] cuadro %lu incompleto: %s\n", (unsigned long)sFrames, e.what());
+        sInterp->mBufVboLen = 0;
+        sInterp->mBufVboNumTris = 0;
+        sInterp->mRdp->textures_changed[0] = sInterp->mRdp->textures_changed[1] = true;
     }
+    // Si una excepcion (cache de texturas lleno, bufer del GPU) sale a media tanda de un modelo con huesos, el interprete
+    // no llega a apagar la bandera de huesos: los dibujos siguientes (rectangulos 2D del HUD) se mandaban al GPU como si
+    // fueran de un modelo y lo colgaban (captura de la consola con Earthquake: un rectangulo de la barra de vida con la
+    // bandera de huesos encendida). Al terminar cada cuadro, con o sin excepcion, se apagan.
+    gPsSkinActive3DS = false; gPsSkinLit3DS = false; gPsRetainNoDraw3DS = false; gPsRetainCaptureDst3DS = nullptr;
+    gPsTriLast3DS = gPsTriNow3DS; gPsTriNow3DS = 0;
     sTRun += svcGetSystemTick() - t3;
     stage_set(ST_GFX_END);
     sInterp->EndFrame();
-    if (texFault) sInterp->TextureCacheClear();
+    // Cache de texturas lleno: se vacia, pero sin las imagenes que dibujo el GPU (retratos con el modelo): esas solo
+    // existen en el cache, y borrarlas dejaba el retrato vacio hasta salir de la pantalla. Si vuelve a llenarse luego
+    // luego, se vacia todo como antes.
+    if (texFault) {
+        static u32 sLastFault;
+        if (sFrames - sLastFault < 30) sInterp->TextureCacheClear();
+        else for (auto it = sTexHash.begin(); it != sTexHash.end();) {
+            if (!GfxConvertIsGpuTarget(it->first)) { sInterp->TextureCacheDelete(it->first); it = sTexHash.erase(it); } else ++it;
+        }
+        sLastFault = sFrames;
+    }
     stage_set(ST_GFX_FB);
     // Imagenes aparte (G_PS_FB): el juego las lee o las copia en cuanto este cuadro "termina", asi que se
     // espera al GPU y se copian a su memoria antes de regresar (solo en los cuadros que las dibujaron)
@@ -1348,7 +1658,7 @@ static void audio_worker_start(void) {
     LightEvent_Init(&sAudStart, RESET_ONESHOT);
     s32 prio = 0x30;
     svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
-    sAudThread = threadCreate(audio_worker, nullptr, 64 * 1024, prio - 2 > 0x18 ? prio - 2 : 0x18, 1, true);
+    sAudThread = threadCreate(audio_worker, nullptr, 64 * 1024, prio - 2 > 0x18 ? prio - 2 : 0x18, 1, false);
     if (!sAudThread) logf("Audio: no pude crear el hilo del nucleo 1\n");
 }
 // out/outSize: donde deja la tarea su sonido (s16 estereo big-endian); el nucleo 1 lo entrega al terminarla
@@ -1375,6 +1685,11 @@ extern "C" size_t Mk64Graphics3DSTextureCacheCapacity(void) { return 512; }
 // Un cuadro que necesita mas de 512 puede crecer hasta 1024 (el tope del interprete): el cruce entre dos fondos al
 // elegir copa en el Stadium o el gimnasio son 600 mosaicos mas lo demas; con 512 no cabia y el juego se cerraba.
 extern "C" size_t Mk64Graphics3DSTextureCacheSpillCapacity(void) { return 1024; }
+// ... pero el interprete de Stadium tiene tope de 512 (TEXTURE_CACHE_MAX_SIZE), asi que pasado eso la salida es esperar
+// a que el GPU acabe con lo ya mandado y reusar esas texturas en el mismo cuadro. Sin esta funcion (MK64 la pone en su
+// runtime, que Stadium no usa) el interprete tiraba "working-set limit": el cuadro se cortaba (lo que faltaba no se
+// dibujaba: retratos vacios) y se vaciaba todo el cache. Pasaba en la renta y en las pantallas de eleccion.
+extern "C" bool Mk64Graphics3DSFenceTextureReuseBatch(void) { return sRenderer.FenceTextureReuseBatch(); }
 
 // ---------------- partida guardada (flash de 128 KB) ----------------
 #define SAVE_PATH "sdmc:/3ds/pokestadium/pokestadium.fla"
@@ -1539,22 +1854,254 @@ static void show_report(void) {
     }
 }
 
+// Detener los hilos propios antes de salir: un proceso que sale con hilos vivos (audio en el nucleo 1) puede
+// dejar la consola congelada al cerrar. Se esperan hasta 1 s cada uno.
+static Thread sVigil;
+static void stop_threads(void) {
+    Thread self = threadGetCurrent();
+    sAudQuit = true;
+    if (sAudThread) LightEvent_Signal(&sAudStart);
+    if (sAudThread && sAudThread != self) {
+        const Result r = threadJoin(sAudThread, 1000000000ULL);
+        logf("[host] hilo de audio: %s\n", R_SUCCEEDED(r) ? "detenido" : "no respondio");
+        if (R_SUCCEEDED(r)) { threadFree(sAudThread); sAudThread = nullptr; }
+    }
+    if (sVigil && sVigil != self) {
+        const Result r = threadJoin(sVigil, 1000000000ULL);
+        logf("[host] vigilante: %s\n", R_SUCCEEDED(r) ? "detenido" : "no respondio");
+        if (R_SUCCEEDED(r)) { threadFree(sVigil); sVigil = nullptr; }
+    }
+    svcSleepThread(250000000LL); // latidos (100 ms) y vigilante simple (1 s, sin espera)
+    if (sLog) fflush(sLog);
+}
+
+static void apt_hook(APT_HookType t, void*) {
+    switch (t) {
+    case APTHOOK_ONSUSPEND: case APTHOOK_ONSLEEP: sAptPaused = true; logf("[apt] %s\n", t == APTHOOK_ONSUSPEND ? "HOME (suspendido)" : "dormir"); break;
+    case APTHOOK_ONRESTORE: case APTHOOK_ONWAKEUP: sAptPaused = false; logf("[apt] de vuelta\n"); break;
+    case APTHOOK_ONEXIT: sAptExiting = true; sAptPaused = true; logf("[apt] cerrar desde HOME\n"); break;
+    default: break;
+    }
+    if (sLog) fflush(sLog);
+}
+
+static bool sGfxUp; // la pantalla ya se inicio (si no, show_report no tiene donde escribir)
+// El GPU lleva mas de 5 s sin terminar lo que se le mando (ver el parche de frame_begin_3ds.hpp en build_3ds.sh). No se
+// sale del proceso: se sigue esperando y mientras tanto se atiende HOME, para poder cerrar el juego sin apagar la
+// consola. Si el GPU termina, el juego sigue. what: 1 cola del GPU, 2 presentacion, 0 ya paso (ms = lo que duro).
+volatile u32 gPsStallCount, gPsStallLastMs, gPsStallNow, gPsStallWhat;
+void host_exit_game(void);
+volatile u32 gPsStallFixed;
+volatile u32 gPsCapState, gPsCapBytes; // 0 nada, 1 armada, 2 en la SD, 3 enviada a la PC, 4 fallo el envio
+extern "C" u32 PsBoxCapture(u8* out, u32 cap);
+#ifdef PS_BLACKBOX
+static void ps_capture_now(void) {
+            // memoria lineal (hay mas libre y menos partida que en el monton normal); si no hay 3 MB, con 1
+            u32 cap = 3 * 1024 * 1024;
+            u8* blob = (u8*)linearAlloc(cap);
+            if (!blob) { cap = 1024 * 1024; blob = (u8*)linearAlloc(cap); }
+            const u32 n = blob ? PsBoxCapture(blob, cap) : 0;
+            gPsCapState = blob ? 1 : 5; gPsCapBytes = n;
+            if (n) {
+                FILE* f = fopen("sdmc:/3ds/pokestadium/gpuhang.bin", "wb");
+                if (f) { fwrite(blob, 1, n, f); fclose(f); gPsCapState = 2; }
+                int sock = -1;
+                if (__3dslink_host.s_addr) {
+                    void* sb = memalign(0x1000, 0x80000);
+                    if (sb && R_SUCCEEDED(socInit((u32*)sb, 0x80000))) sock = link3dsConnectToHost(false, false);
+                }
+                if (sock >= 0) {
+                    static const char kB64[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+                    char line[96];
+                    bool ok = true;
+                    for (u32 o = 0; o < n && ok; o += 57) {
+                        const u32 len = n - o < 57 ? n - o : 57;
+                        int m = 0;
+                        memcpy(line, "PSCAP ", 6); m = 6;
+                        for (u32 q = 0; q < len; q += 3) {
+                            const u32 b0 = blob[o + q], b1 = q + 1 < len ? blob[o + q + 1] : 0, b2 = q + 2 < len ? blob[o + q + 2] : 0;
+                            line[m++] = kB64[b0 >> 2]; line[m++] = kB64[((b0 & 3) << 4) | (b1 >> 4)];
+                            line[m++] = q + 1 < len ? kB64[((b1 & 15) << 2) | (b2 >> 6)] : '=';
+                            line[m++] = q + 2 < len ? kB64[b2 & 63] : '=';
+                        }
+                        line[m++] = '\n';
+                        for (int sent = 0; sent < m;) { const int r = send(sock, line + sent, m - sent, 0); if (r <= 0) { ok = false; break; } sent += r; }
+                    }
+                    const int m = snprintf(line, sizeof line, "PSCAP-FIN %lu\n", (unsigned long)n);
+                    if (ok) send(sock, line, m, 0);
+                    closesocket(sock);
+                    gPsCapState = ok ? 3 : 4;
+                }
+            }
+            if (blob) linearFree(blob);
+}
+#endif
+void PsGpuStall3DS(int what, unsigned ms) {
+    // Nota: no hay rescate posible desde aqui. Con el GPU colgado se cuelga tambien el modulo de video del sistema
+    // (3dbrew, GPU/Internal Registers), asi que cualquier llamada a el (reiniciar el GPU, escribir registros, HOME) se
+    // queda esperando para siempre.
+    if (what == 0) { gPsStallLastMs = ms; gPsStallNow = 0; gPsStallFixed = gPsStallFixed + 1; return; }
+#ifdef PS_BLACKBOX
+    {   // Captura: la lista que colgo al GPU, con el estado y los datos de cada dibujo, se manda a la PC por la conexion
+        // de 3dslink (texto en base64) y se guarda en la SD. Solo una vez.
+        static bool sDone;
+        if (what == 1 && ms >= 3000 && !sDone && on_main_thread()) {
+            sDone = true;
+            ps_capture_now();
+        }
+    }
+#endif
+    if (ms < 5000) return;
+    if (!gPsStallNow) { gPsStallCount = gPsStallCount + 1; gPsStallWhat = (u32)what; }
+    gPsStallNow = ms;
+#if !defined(PS_BLACKBOX) || defined(PS_BOXLITE)
+    {   // aviso en la pantalla de abajo (la escribe el CPU, no pasa por el GPU): cuanto lleva y como salir
+        static u32 sShown = ~0u;
+        const u32 sec = ms / 1000;
+        if (on_main_thread() && sec != sShown && gb_screen_begin()) {
+            sShown = sec;
+            char t[48];
+            for (int y = 0; y < 40; y++) for (int x = 0; x < 320; x++) { u8* q = sGbFb + ((x * 240) + (239 - (100 + y))) * 3; q[0] = 0; q[1] = 0; q[2] = 0; }
+            snprintf(t, sizeof t, "GPU busy: %lu s (%s)%s%s%s", (unsigned long)sec, what == 2 ? "screen" : "draw",
+                     (gPsSkipDraw3DS & 1u) ? " -huesos" : "", (gPsSkipDraw3DS & 2u) ? " -nativa" : "", (gPsSkipDraw3DS & 4u) ? " -planos" : "");
+            gb_text(60, 106, t, 0xFFFFFF);
+            gb_text(60, 122, "Power off to exit", 0xFFD040);
+            gfxFlushBuffers();
+            gfxScreenSwapBuffers(GFX_BOTTOM, false);
+        }
+    }
+#endif
+    static u32 sPump;
+    if ((sPump++ % 50) == 0 && on_main_thread() && !aptMainLoop()) { sExitReason = "aptMainLoop"; host_exit_game(); }
+}
+// Red de seguridad antes de cada subida de uniformes al GPU: 3dbrew (GPU/Internal Registers) documenta que un parametro
+// invalido como un NaN cuelga al GPU y con el al modulo de video del sistema. En la consola se vio con infinitos que
+// venian de una textura de lado 0 (1/0). Cualquier componente que no sea finito se pone en 0 y se cuenta.
+extern "C" {
+// triangulos que llegan al GPU en el cuadro (todos los caminos de dibujo pasan por aqui)
+volatile u32 gPsTriNow3DS, gPsTriLast3DS;
+volatile u32 gPsSkipDraw3DS; // tipos de dibujo apagados (prueba del cuelgue)
+void __real_C3D_DrawArrays(GPU_Primitive_t primitive, int first, int size);
+static inline bool ps_skip_draw() {
+    const u32 m = gPsSkipDraw3DS;
+    if (!m) return false;
+    const u16 bu = C3D_BoolUnifs[GPU_VERTEX_SHADER];
+    if ((m & 1u) && (bu & 0x20)) return true;                 // modelos con huesos
+    if ((m & 2u) && (bu & 0x01) && !(bu & 0x20)) return true; // geometria nativa
+    if ((m & 4u) && !(bu & 0x21)) return true;                // dibujos planos
+    return false;
+}
+void __wrap_C3D_DrawArrays(GPU_Primitive_t primitive, int first, int size) { if (ps_skip_draw()) return; gPsTriNow3DS = gPsTriNow3DS + (u32)size / 3; __real_C3D_DrawArrays(primitive, first, size); }
+void __real_C3D_DrawElements(GPU_Primitive_t primitive, int count, int type, const void* indices);
+void __wrap_C3D_DrawElements(GPU_Primitive_t primitive, int count, int type, const void* indices) { if (ps_skip_draw()) return; gPsTriNow3DS = gPsTriNow3DS + (u32)count / 3; __real_C3D_DrawElements(primitive, count, type, indices); }
+volatile u32 gPsBadUnif3DS, gPsBadUnifReg3DS;
+// Red de seguridad (todas las builds): un gSPVertex con direccion fuera de la memoria del juego se salta en vez de
+// tronar la consola (abort de datos). Se guarda la direccion y el comando para la caja negra.
+extern u32 __ctru_heap, __ctru_linear_heap;
+extern char __end__[];
+volatile u32 gPsBadPtrN3DS, gPsBadPtr3DS, gPsBadPtrCmd3DS, gPsBadPtrW0_3DS;
+int PsPtrOk3DS(const void* p, u32 len) {
+    const u32 a = (u32)p, e = a + len;
+    if (!p || e < a) return 0;
+    if (a >= BLOB_BASE && e <= BLOB_BASE + BLOB_SIZE) return 1;
+    if (a >= __ctru_heap && e <= __ctru_heap + __ctru_heap_size) return 1;
+    if (a >= __ctru_linear_heap && e <= __ctru_linear_heap + __ctru_linear_heap_size) return 1;
+    if (a >= 0x00100000u && e <= (u32)__end__) return 1;
+    return 0;
+}
+volatile u32 gPsBadStk3DS[6], gPsBadStkN3DS, gPsBadStkRes3DS, gPsBadStkSet3DS;
+void PsBadStk3DS(const u32* stk, u32 depth, u32 res) {
+    if (gPsBadStkSet3DS) return; // se queda la primera vez: es la que dice de donde viene
+    for (u32 i = 0; i < 6; i++) gPsBadStk3DS[i] = stk[i];
+    gPsBadStkN3DS = depth; gPsBadStkRes3DS = res; gPsBadStkSet3DS = 1;
+#ifdef PS_BLACKBOX
+    // volcado para analizar en la PC: cabecera (pila) + 64 KB alrededor de la lista donde se encontro
+    if (FILE* f = fopen("sdmc:/3ds/pokestadium/dirmala.bin", "wb")) {
+        u32 h[16] = { 0x50534D4Cu, gPsBadPtr3DS, gPsBadPtrCmd3DS, gPsBadPtrW0_3DS, stk[0], stk[1], stk[2], stk[3], stk[4], stk[5], depth, 0, 0, 0, 0, 0 };
+        u32 a = (gPsBadPtrCmd3DS & ~0xFFFu) - 0x8000u;
+        if (a < __ctru_heap) a = __ctru_heap;
+        if (a + 0x10000u > __ctru_heap + __ctru_heap_size) a = __ctru_heap + __ctru_heap_size - 0x10000u;
+        if (!(gPsBadPtrCmd3DS >= __ctru_heap && gPsBadPtrCmd3DS < __ctru_heap + __ctru_heap_size)) a = gPsBadPtrCmd3DS & ~0xFFFu;
+        h[11] = a;
+        fwrite(h, 4, 16, f);
+        fwrite((const void*)a, 1, 0x10000, f);
+        fclose(f);
+    }
+#endif
+}
+void PsBadPtr3DS(const void* p, const void* cmd, u32 w0) {
+    gPsBadPtrN3DS = gPsBadPtrN3DS + 1; gPsBadPtr3DS = (u32)p; gPsBadPtrCmd3DS = (u32)cmd; gPsBadPtrW0_3DS = w0;
+}
+void __real_C3D_UpdateUniforms(GPU_SHADER_TYPE type);
+void __wrap_C3D_UpdateUniforms(GPU_SHADER_TYPE type) {
+    for (int i = 0; i < C3D_FVUNIF_COUNT; i++) {
+        if (!C3D_FVUnifDirty[type][i]) continue;
+        float* c = C3D_FVUnif[type][i].c;
+        for (int k = 0; k < 4; k++) {
+            u32 u; memcpy(&u, &c[k], 4);
+            if ((u & 0x7F800000u) == 0x7F800000u) { c[k] = 0.0f; gPsBadUnif3DS = gPsBadUnif3DS + 1; gPsBadUnifReg3DS = (u32)i; }
+        }
+    }
+    __real_C3D_UpdateUniforms(type);
+}
+} // extern "C"
 void host_exit_game(void) {
     static volatile int sExiting;
     if (__sync_lock_test_and_set(&sExiting, 1)) { for (;;) svcSleepThread(1000000000LL); } // otro hilo ya esta saliendo
     if (on_main_thread()) stage_set(ST_EXIT);
     sWatchQuit = true;
+#ifdef PS_BLACKBOX
+    if (strcmp(sExitReason, "aptMainLoop") != 0 && strcmp(sExitReason, "excepcion") != 0) {
+        // la caja negra: por que se salio el juego, en la pantalla de abajo, hasta que apaguen la consola
+        char b[64];
+        struct mallinfo mi = mallinfo();
+        const u32 freeB = (__ctru_heap_size > (u32)mi.arena ? __ctru_heap_size - (u32)mi.arena : 0) + (u32)mi.fordblks;
+        ps_box_fatal_begin();
+        ps_box_fatal_line("EL JUEGO SE SALIO");
+        snprintf(b, sizeof b, "%.60s", sExitReason); ps_box_fatal_line(b);
+        snprintf(b, sizeof b, "cuadro %lu", (unsigned long)sFrames); ps_box_fatal_line(b);
+        snprintf(b, sizeof b, "libre %lu KB lineal %lu KB", (unsigned long)(freeB / 1024), (unsigned long)(linearSpaceFree() / 1024)); ps_box_fatal_line(b);
+        snprintf(b, sizeof b, "texturas %lu gpu %lu", (unsigned long)sTexFaults, (unsigned long)sGpuFaults); ps_box_fatal_line(b);
+        snprintf(b, sizeof b, "ROM japonesa: %s", sRomJp ? "abierta" : "NO"); ps_box_fatal_line(b);
+        ps_box_fatal_line("Toma foto y apaga la consola");
+        for (;;) svcSleepThread(1000000000LL);
+    }
+#endif
+    // lanzado con "3dslink -s": los pasos del cierre se ven en la terminal de la PC. En un fallo no se toca la red:
+    // el registro se muestra en la pantalla de abajo.
+    const bool crashed = !strcmp(sExitReason, "excepcion");
+    if (!crashed) link_diag_init();
     logf("[host] salir: %s (frames %lu)\n", sExitReason, (unsigned long)sFrames);
+    {   // cuanta memoria quedaba: si faltaba, hay modelos o texturas que no se dibujaron
+        struct mallinfo mi = mallinfo();
+        const u32 freeB = (__ctru_heap_size > (u32)mi.arena ? __ctru_heap_size - (u32)mi.arena : 0) + (u32)mi.fordblks;
+        logf("[host] memoria libre al salir: %lu KB (lineal %lu KB), cuadros incompletos por texturas: %lu, por comandos del GPU: %lu\n", (unsigned long)(freeB / 1024), (unsigned long)(linearSpaceFree() / 1024), (unsigned long)sTexFaults, (unsigned long)sGpuFaults);
+        logf("[host] retraso del sonido contra la imagen: %lu ms en promedio, %lu ms maximo (%lu medidas)\n", (unsigned long)(sLatTot[1] ? sLatTot[0] / sLatTot[1] : 0), (unsigned long)sLatTot[2], (unsigned long)sLatTot[1]);
+    }
+    if (sLog) fflush(sLog);
+    stop_threads();
+    logf("[host] hilos detenidos\n");
     if (sTexFaults) logf("[tex] cuadros incompletos por demasiadas texturas: %lu\n", (unsigned long)sTexFaults);
     if (on_main_thread()) { gb_flush("al salir"); gb_close(); } // la partida de Game Boy, si quedo algo sin guardar
     gb_summary();
     diag_summary(sExitReason);
+    logf("[host] partidas y resumen listos\n");
     if (sAudioOk) { ndspExit(); sAudioOk = false; }
+    logf("[host] sonido cerrado\n");
     if (sLog) fflush(sLog);
-    show_report();
+    // registro en pantalla solo en diagnostico y si la app sigue al frente (cerrar desde HOME: salir ya)
+    if (kLogs && (kDiag || crashed) && !sAptExiting && strcmp(sExitReason, "aptMainLoop") != 0) show_report();
+    // Soltar la pantalla antes de salir: sin gfxExit el sistema no recupera el GPU y el cierre desde HOME (o la vuelta
+    // al Homebrew Launcher) se queda colgado. C3D_Fini no hace nada si citro3d no se llego a iniciar.
+    // Al cerrar desde HOME ya no se tiene el GPU: C3D_Fini esperaria para siempre a que termine lo que quedo en cola.
+    if (sGfxUp) { if (!sAptExiting) C3D_Fini(); logf("[host] cerrando pantalla\n"); if (sLog) fflush(sLog); gfxExit(); sGfxUp = false; }
+    logf("[host] fin\n");
     if (sRom) fclose(sRom);
+    if (sRomJp) fclose(sRomJp);
     if (sLog) fclose(sLog);
-    exit(0);
+    if (ps_romfs()) romfsExit();
+    if (sLinkSock >= 0) { const char* m = "[host] saliendo\n"; send(sLinkSock, m, strlen(m), 0); close(sLinkSock); sLinkSock = -1; socExit(); }
+    _exit(0); // sin pasar por los destructores globales (el interprete grafico tocaria un GPU que ya no se tiene)
 }
 
 // Assets: PERS-SZP (Yay0 + parches) descomprimido aqui; lo demas crudo. Todo queda en big-endian.
@@ -1650,6 +2197,19 @@ static void resc_add(u32 rom, u32 size, u32 type, const u8* data, u32 out) {
         resc_drop(lru);
     }
 }
+// De donde es una direccion (caja negra): J = memoria del juego, A = copia de un asset (con su ROM), b = bufer del
+// ultimo asset, L = lineal, H = heap, E = el ejecutable, ? = nada
+extern "C" char PsAddrTag3DS(u32 a, u32* rom) {
+    *rom = 0;
+    if (a >= BLOB_BASE && a < BLOB_BASE + BLOB_SIZE) return 'J';
+    for (u32 i = 0; i < RESC_N; i++)
+        if (sResC[i].data && a >= (u32)sResC[i].data && a < (u32)sResC[i].data + sResC[i].out) { *rom = sResC[i].rom; return 'A'; }
+    if (!sResBuf.empty() && a >= (u32)sResBuf.data() && a < (u32)sResBuf.data() + sResBuf.size()) return 'b';
+    if (a >= __ctru_linear_heap && a < __ctru_linear_heap + __ctru_linear_heap_size) return 'L';
+    if (a >= __ctru_heap && a < __ctru_heap + __ctru_heap_size) return 'H';
+    if (a >= 0x00100000u && a < 0x00700000u) return 'E';
+    return '?';
+}
 static void res_note_miss(u32 rom, u32 out) {
     sPkResMiss++;
     sPkResKB += out / 1024;
@@ -1701,7 +2261,17 @@ void ps_call_blob(u32 entry, u32 arg0);
 void ps_exc_entry(void);
 void ps_exc_resume(CpuRegisters* r) __attribute__((noreturn));
 void ps_exc_resume_be(CpuRegisters* r) __attribute__((noreturn));
-static u8 sExcStack[0x4000] __attribute__((aligned(8)));
+// El camino de salida (registro, red de 3dslink, cierre de pantalla) corre sobre esta pila cuando el fallo no tiene
+// arreglo: con 16 KB se desbordaba y el fallo terminaba en la pantalla de error del sistema, sin registro.
+static u8 sExcStack[0x20000] __attribute__((aligned(8)));
+#ifdef PS_BLACKBOX
+static void ps_box_stk_lines(void) {
+    char b[64];
+    snprintf(b, sizeof b, "primera dir mala, pila de listas (%lu):", (unsigned long)gPsBadStkN3DS); ps_box_fatal_line(b);
+    for (u32 i = 0; i < 6 && i < gPsBadStkN3DS; i++) { u32 rom; const char t = PsAddrTag3DS(gPsBadStk3DS[i], &rom);
+        snprintf(b, sizeof b, " %08lX %c%s rom %06lX", (unsigned long)gPsBadStk3DS[i], t, (gPsBadStkRes3DS >> i) & 1 ? " recurso" : "", (unsigned long)rom); ps_box_fatal_line(b); }
+}
+#endif
 void ps_exc_handler(ERRF_ExceptionInfo* e, CpuRegisters* r) {
     u32 pc = r->pc;
     bool notNative = (pc >= BLOB_TEXT_END && pc < BLOB_BASE + BLOB_SIZE) || pc >= 0x80000000u;
@@ -1709,6 +2279,7 @@ void ps_exc_handler(ERRF_ExceptionInfo* e, CpuRegisters* r) {
     // instruccion indefinida al ejecutar el codigo MIPS: mismo tratamiento.
     if ((e->type == ERRF_EXCEPTION_PREFETCH_ABORT || e->type == ERRF_EXCEPTION_UNDEFINED) && notNative) {
         sExcTraps++;
+        if (kLogs && sExcTraps <= 6) logf("[trampa] codigo MIPS en %08lX, llamado desde %08lX (cuadro %lu)\n", (unsigned long)pc, (unsigned long)r->lr, (unsigned long)sFrames);
         r->r[12] = pc;
         r->pc = BLOB_MIPS_TRAP;
         ps_exc_resume(r);
@@ -1738,14 +2309,54 @@ void ps_exc_handler(ERRF_ExceptionInfo* e, CpuRegisters* r) {
         }
     }
     sExitReason = "excepcion";
-    logf("\n*** EXCEPCION tipo %d\nPC %08lX LR %08lX SP %08lX FAR %08lX FSR %08lX\nr0 %08lX r1 %08lX r2 %08lX r3 %08lX\npila:",
-         e->type, r->pc, r->lr, r->sp, e->far, e->fsr, r->r[0], r->r[1], r->r[2], r->r[3]);
-    u32* sp = (u32*)r->sp;
-    for (int i = 0, shown = 0; i < 512 && shown < 16; i++) {
-        u32 v = __builtin_bswap32(sp[i]);
-        if (v >= BLOB_BASE && v < BLOB_TEXT_END) { logf(" %08lX", v); shown++; }
+#ifdef PS_BLACKBOX
+    {   // la caja negra: el fallo se queda en la pantalla de abajo (sin red ni archivos) hasta que apaguen la consola
+        char b[64];
+        ps_box_fatal_begin();
+        snprintf(b, sizeof b, "FALLO tipo %d cuadro %lu", e->type, (unsigned long)sFrames); ps_box_fatal_line(b);
+        snprintf(b, sizeof b, "PC %08lX LR %08lX", (unsigned long)r->pc, (unsigned long)r->lr); ps_box_fatal_line(b);
+        snprintf(b, sizeof b, "SP %08lX FAR %08lX FSR %08lX", (unsigned long)r->sp, (unsigned long)e->far, (unsigned long)e->fsr); ps_box_fatal_line(b);
+        for (int i = 0; i < 12; i += 3) { snprintf(b, sizeof b, "r%d %08lX r%d %08lX r%d %08lX", i, (unsigned long)r->r[i], i + 1, (unsigned long)r->r[i + 1], i + 2, (unsigned long)r->r[i + 2]); ps_box_fatal_line(b); }
+        snprintf(b, sizeof b, "r12 %08lX  juego %08lX-%08lX", (unsigned long)r->r[12], (unsigned long)BLOB_BASE, (unsigned long)BLOB_TEXT_END); ps_box_fatal_line(b);
+        for (u32 k = 0; k < 4; k++) { const u32 q = (gPsBoxCmdN - 1 - k) & 3;
+            snprintf(b, sizeof b, "dl %08lX %08lX %08lX", (unsigned long)gPsBoxCmd[q][0], (unsigned long)gPsBoxCmd[q][1], (unsigned long)gPsBoxCmd[q][2]); ps_box_fatal_line(b); }
+        snprintf(b, sizeof b, "dir mala %lu: %08lX cmd %08lX", (unsigned long)gPsBadPtrN3DS, (unsigned long)gPsBadPtr3DS, (unsigned long)gPsBadPtrCmd3DS); ps_box_fatal_line(b);
+        { u32 rom; const char t = PsAddrTag3DS(gPsBoxCmd[(gPsBoxCmdN - 1) & 3][0], &rom); snprintf(b, sizeof b, "lista actual: %c rom %06lX", t, (unsigned long)rom); ps_box_fatal_line(b); }
+        ps_box_stk_lines();
+        const u32 spv = r->sp;
+        int shown = 0, n = snprintf(b, sizeof b, "pila:");
+        if (spv >= 0x00100000u && spv < 0x40000000u && !(spv & 3)) {
+            const u32* sp = (const u32*)spv;
+            for (int i = 0; i < 1024 && shown < 18; i++) {
+                const u32 v = __builtin_bswap32(sp[i]);
+                if (v >= BLOB_BASE && v < BLOB_TEXT_END) {
+                    n += snprintf(b + n, sizeof b - n, " %08lX", (unsigned long)v); shown++;
+                    if (shown % 3 == 0) { ps_box_fatal_line(b); n = snprintf(b, sizeof b, "     "); }
+                }
+            }
+        }
+        if (shown % 3) ps_box_fatal_line(b);
+        ps_box_fatal_line("Toma foto y apaga la consola");
+        for (;;) svcSleepThread(1000000000LL);
     }
-    logf("\n");
+#endif
+    logf("[host] EXCEPCION tipo %d cuadro %lu: PC %08lX LR %08lX SP %08lX FAR %08lX FSR %08lX\n", e->type, (unsigned long)sFrames, r->pc, r->lr, r->sp, e->far, e->fsr);
+    logf("[host] r0 %08lX r1 %08lX r2 %08lX r3 %08lX r4 %08lX r5 %08lX r6 %08lX r7 %08lX\n", r->r[0], r->r[1], r->r[2], r->r[3], r->r[4], r->r[5], r->r[6], r->r[7]);
+    logf("[host] r8 %08lX r9 %08lX r10 %08lX r11 %08lX r12 %08lX | bloque %08lX a %08lX\n", r->r[8], r->r[9], r->r[10], r->r[11], r->r[12], (unsigned long)BLOB_BASE, (unsigned long)BLOB_TEXT_END);
+    {
+        // direcciones de regreso que hay en la pila del juego (solo si la pila es memoria del programa)
+        char line[256]; int n = snprintf(line, sizeof line, "[host] pila:");
+        const u32 spv = r->sp;
+        if (spv >= 0x00100000u && spv < 0x40000000u && !(spv & 3)) {
+            const u32* sp = (const u32*)spv;
+            for (int i = 0, shown = 0; i < 512 && shown < 16 && n < 230; i++) {
+                u32 v = __builtin_bswap32(sp[i]);
+                if (v >= BLOB_BASE && v < BLOB_TEXT_END) { n += snprintf(line + n, sizeof line - n, " %08lX", (unsigned long)v); shown++; }
+            }
+        }
+        logf("%s\n", line);
+    }
+    if (sLog) fflush(sLog);
     host_exit_game();
 }
 } // extern "C"
@@ -1757,6 +2368,7 @@ static void watchdog(void*) {
     while (!sWatchQuit) {
         svcSleepThread(1000000000LL);
         if (sFrames != last) { last = sFrames; still = 0; continue; }
+        if (sAptPaused || sAptExiting) { still = 0; continue; } // en HOME: no es bloqueo
         if (++still < 25) continue; // las primeras cargas pueden tardar
         logf("\n*** el juego no avanza (frame %lu)\nultima llamada al host desde %08lX\npila:", (unsigned long)sFrames,
              (unsigned long)ps_last_game_lr);
@@ -1775,7 +2387,6 @@ static bool blobPtr(u32 a) { return a >= BLOB_BASE && a < BLOB_BASE + BLOB_SIZE;
 // Diagnostico: vigilante en el nucleo 1 con mas prioridad que el audio. No usa stdout ni depende del hilo
 // principal: escribe el registro en la SD cada 5 s, un pulso cada 10 s, y si el juego deja de dibujar 5 s,
 // el estado de cada hilo (a los 5, 15 y 30 s, y luego cada 30 s mientras siga trabado).
-static Thread sVigil;
 static u32 be_load(u32 addr) { return __builtin_bswap32(*(const volatile u32*)addr); }
 static void beat_hi(void*) { while (!sWatchQuit) { sBeatHi++; svcSleepThread(100000000LL); } }
 static void beat_lo(void*) { while (!sWatchQuit) { sBeatLo++; svcSleepThread(100000000LL); } }
@@ -1859,9 +2470,27 @@ static void box_text(int col, int row, const char* t, u8 r, u8 g, u8 b) {
             p[0] = p[1] = p[2] = 0;
         }
 }
-static const char* box_kind(u8 k) { return k == BOX_LIST ? "LISTA" : k == BOX_XFER ? "TRANSF" : k == BOX_COPY ? "COPIA" : k == BOX_FILL ? "RELLENO" : "?"; }
-static void box_draw() {
+static int sBoxFatalRow;
+static volatile bool sBoxFatal;
+static void ps_box_fatal_begin(void) {
+    sBoxFatal = true; // el hilo de la caja deja de dibujar
+    svcSleepThread(50000000LL);
+    if (sBoxFb) memset(sBoxFb, 0, 240 * 320 * 3);
+    sBoxFatalRow = 0;
+}
+static void ps_box_fatal_line(const char* t) {
     if (!sBoxFb) return;
+    box_text(0, sBoxFatalRow++, t, 255, sBoxFatalRow == 1 ? 80 : 255, sBoxFatalRow == 1 ? 80 : 255);
+    svcFlushProcessDataCache(CUR_PROCESS_HANDLE, (u32)sBoxFb, 240 * 320 * 3);
+}
+static const char* box_kind(u8 k) { return k == BOX_LIST ? "LISTA" : k == BOX_XFER ? "TRANSF" : k == BOX_COPY ? "COPIA" : k == BOX_FILL ? "RELLENO" : "?"; }
+extern "C" { extern volatile uint32_t gPsBoxCmd[4][3]; extern volatile uint32_t gPsBoxCmdN; }
+extern "C" { extern gxCmdQueue_s* volatile gBoxQueue; }
+extern "C" { extern volatile unsigned gPsBadVtx3DS; }
+extern "C" { extern volatile u32 gPsBadUnif3DS, gPsBadUnifReg3DS, gPsBadPtrN3DS, gPsBadPtr3DS, gPsBadPtrCmd3DS, gPsBadPtrW0_3DS; extern volatile uint32_t gPsBoxCmd[4][3]; extern volatile uint32_t gPsBoxCmdN; }
+extern "C" { extern volatile unsigned gPsCrumb[8]; extern volatile unsigned gPsCrumbN; const char* PsCrumbName3DS(unsigned id); }
+static void box_draw() {
+    if (!sBoxFb || sBoxFatal) return;
     char b[64];
     const u32 now = (u32)(svcGetSystemTick() >> 18);
     int row = 0;
@@ -1885,32 +2514,96 @@ static void box_draw() {
     snprintf(b, sizeof b, "GPU listas %lu dib %lu tr %lu cp %lu rell %lu", (unsigned long)gBox.lists, (unsigned long)gBox.draws,
              (unsigned long)gBox.xfers, (unsigned long)gBox.copies, (unsigned long)gBox.fills);
     box_text(0, row++, b, 255, 255, 255);
-    snprintf(b, sizeof b, "MAL dir %lu NaN %lu | ultima lista hace %lums (%lu)", (unsigned long)gBox.bad, (unsigned long)gBox.badNan,
-             (unsigned long)(now - gBox.lastListTick), (unsigned long)gBox.maxListWords);
+    snprintf(b, sizeof b, "MAL dir %lu NaN %lu c%lu | ult. lista hace %lums", (unsigned long)gBox.bad, (unsigned long)gBox.badNan,
+             (unsigned long)gBox.nanReg, (unsigned long)(now - gBox.lastListTick));
     box_text(0, row++, b, gBox.bad || gBox.badNan ? 255 : 120, gBox.bad || gBox.badNan ? 80 : 255, 120);
-    if (gBox.lastBad.seq) {
-        const BoxEvent& e = gBox.lastBad;
-        snprintf(b, sizeof b, "malo #%lu f%lu %s reg %03lX val %08lX", (unsigned long)e.seq, (unsigned long)e.frame, box_kind(e.kind),
-                 (unsigned long)e.badReg, (unsigned long)e.badVal);
+    {   // el comando de la lista de dibujo que esta ejecutando el interprete (y los tres anteriores)
+        const u32 n = gPsBoxCmdN;
+        const u32 k = (n + 3) & 3;
+        snprintf(b, sizeof b, "DL #%lu en %08lX: %08lX %08lX", (unsigned long)n, (unsigned long)gPsBoxCmd[k][0], (unsigned long)gPsBoxCmd[k][1], (unsigned long)gPsBoxCmd[k][2]);
+        box_text(0, row++, b, 255, 255, 0);
+        snprintf(b, sizeof b, "antes: %08lX %08lX %08lX", (unsigned long)gPsBoxCmd[(k + 3) & 3][1], (unsigned long)gPsBoxCmd[(k + 2) & 3][1], (unsigned long)gPsBoxCmd[(k + 1) & 3][1]);
+        box_text(0, row++, b, 255, 255, 0);
+    }
+    {   // se mueve o esta quieto: comandos de la lista y funciones entre un pulso y el siguiente; si el hilo de
+        // prioridad mas baja del nucleo 0 no avanza, el principal no suelta el procesador (ciclo), si avanza, espera algo
+        static u32 sPrevDl, sPrevCr, sPrevLo;
+        const u32 dl = gPsBoxCmdN, cr = gPsCrumbN, lo = sBeatLo;
+        snprintf(b, sizeof b, "DL +%lu  funciones +%lu  principal %s", (unsigned long)(dl - sPrevDl), (unsigned long)(cr - sPrevCr),
+                 lo != sPrevLo ? "ESPERA (cede)" : "CICLO (no cede)");
+        box_text(0, row++, b, 255, 160, 0);
+        sPrevDl = dl; sPrevCr = cr; sPrevLo = lo;
+        struct mallinfo mi = mallinfo();
+        const u32 freeB = (__ctru_heap_size > (u32)mi.arena ? __ctru_heap_size - (u32)mi.arena : 0) + (u32)mi.fordblks;
+        snprintf(b, sizeof b, "libre %lu KB lineal %lu KB | tex %lu gpu %lu", (unsigned long)(freeB / 1024), (unsigned long)(linearSpaceFree() / 1024),
+                 (unsigned long)sTexFaults, (unsigned long)sGpuFaults);
+        box_text(0, row++, b, 255, 255, 255);
+    }
+    {   // cola GX: cuantos comandos hay, cual sigue, y el que esta en curso (01 lista, 02 relleno, 03 transferencia, 04 copia)
+        const gxCmdQueue_s* q = gBoxQueue;
+        if (q && q->entries && q->maxEntries) {
+            const u32 cur = q->curEntry, n = q->numEntries;
+            const u32 k = q->lastEntry; // el primero que no ha terminado
+            const u32 c0 = k < q->maxEntries ? q->entries[k].data[0] : 0, c1 = k < q->maxEntries ? q->entries[k].data[1] : 0;
+            snprintf(b, sizeof b, "cola %lu de %lu ult %lu | en curso %02lX %08lX", (unsigned long)cur, (unsigned long)n, (unsigned long)q->lastEntry,
+                     (unsigned long)(c0 & 0xFF), (unsigned long)c1);
+        } else snprintf(b, sizeof b, "cola: sin datos");
+        box_text(0, row++, b, 0, 255, 255);
+    }
+    static const char* const kCap[] = { "-", "vacia", "EN LA SD", "ENVIADA A LA PC", "fallo el envio", "sin memoria" };
+    snprintf(b, sizeof b, "atoron %lums | captura %s (%lu KB)", (unsigned long)gPsStallNow, kCap[gPsCapState < 6 ? gPsCapState : 0], (unsigned long)(gPsCapBytes / 1024));
+    box_text(0, row++, b, gPsStallCount ? 255 : 120, gPsStallCount ? 80 : 255, 120);
+    snprintf(b, sizeof b, "raro %lu | vtx invalidos %lu | unif corregidos %lu (c%lu)", (unsigned long)gBox.sus, (unsigned long)gPsBadVtx3DS,
+             (unsigned long)gPsBadUnif3DS, (unsigned long)gPsBadUnifReg3DS);
+    box_text(0, row++, b, 255, (gBox.sus || gPsBadVtx3DS || gPsBadUnif3DS) ? 80 : 255, (gBox.sus || gPsBadVtx3DS || gPsBadUnif3DS) ? 80 : 255);
+    {   // la lista de dibujo del juego: lo minimo que le quedo libre y su tamano (si llega a 0 se encima con sus datos)
+        const s32 fr = BLOB_DYNFREE ? (s32)intro_be(BLOB_DYNFREE) : 0; const u32 sz = BLOB_DYNSIZE ? intro_be(BLOB_DYNSIZE) : 0;
+        snprintf(b, sizeof b, "lista del juego: libre min %ld de %lu KB", fr == 0x7FFFFFFF ? -1L : (long)fr / 1024, (unsigned long)sz / 1024);
+        box_text(0, row++, b, 255, fr < 4096 ? 80 : 255, fr < 4096 ? 80 : 255);
+    }
+    {   // cache de modelos y el ultimo cuadro incompleto por texturas (lo que hace que falten modelos e imagenes)
+        const mc::Stats m = GfxConvertModelCachePeek();
+        snprintf(b, sizeof b, "tri GPU %lu | inv %lu h0 %lu t0 %lu why %lu/%lu/%lu", (unsigned long)gPsTriLast3DS, (unsigned long)gPsBadRetain3DS, (unsigned long)gPsSlot0Fallback3DS, (unsigned long)gPsTmplFallback3DS, (unsigned long)gPsRetainWhy3DS[3], (unsigned long)gPsRetainWhy3DS[6], (unsigned long)gPsRetainWhy3DS[7]); box_text(0, row++, b, 255, gPsBadRetain3DS ? 80 : 255, gPsBadRetain3DS ? 80 : 255);
+        snprintf(b, sizeof b, "modelos %lu (%lu KB gpu %lu KB) sinmem %lu/%lu/%lu", (unsigned long)m.entries, (unsigned long)(m.bytes / 1024),
+                 (unsigned long)(m.gpuBytes / 1024), (unsigned long)m.allocFails, (unsigned long)m.budgetFails, (unsigned long)m.gpuAllocFails);
+        box_text(0, row++, b, 255, (m.allocFails || m.gpuAllocFails) ? 80 : 255, (m.allocFails || m.gpuAllocFails) ? 80 : 255);
+        snprintf(b, sizeof b, "limpiezas al cambiar de modo %lu", (unsigned long)sFlushes); box_text(0, row++, b, 200, 255, 200);
+        if (sTexFaults) { snprintf(b, sizeof b, "tex fallo %lu: %s", (unsigned long)sTexFaults, sTexFaultWhy); box_text(0, row++, b, 255, 80, 80); }
+    }
+    snprintf(b, sizeof b, "dir mala %lu: %08lX cmd %08lX w0 %08lX", (unsigned long)gPsBadPtrN3DS, (unsigned long)gPsBadPtr3DS,
+             (unsigned long)gPsBadPtrCmd3DS, (unsigned long)gPsBadPtrW0_3DS);
+    box_text(0, row++, b, 255, gPsBadPtrN3DS ? 80 : 255, gPsBadPtrN3DS ? 80 : 255);
+    if (gPsBadStkSet3DS) {
+        int n = snprintf(b, sizeof b, "origen:");
+        for (u32 i = 0; i < 3 && i < gPsBadStkN3DS; i++) { u32 rom; const char t = PsAddrTag3DS(gPsBadStk3DS[i], &rom);
+            n += snprintf(b + n, sizeof b - n, rom ? " %08lX%c%06lX" : " %08lX%c", (unsigned long)gPsBadStk3DS[i], t, (unsigned long)rom); }
         box_text(0, row++, b, 255, 80, 80);
-    } else box_text(0, row++, "", 0, 0, 0);
+    }
+    // ultimas funciones a las que entro el hilo principal (la ultima arriba)
+    {
+        const u32 n = gPsCrumbN;
+        for (u32 i = 0; i < 6; i++) {
+            if (n < i + 1) { box_text(0, row++, "", 0, 0, 0); continue; }
+            const u32 id = gPsCrumb[(n - 1 - i) & 7];
+            snprintf(b, sizeof b, "%s%lu %s", i == 0 ? "> " : "  ", (unsigned long)id, PsCrumbName3DS(id));
+            box_text(0, row++, b, i == 0 ? 255 : 200, 255, i == 0 ? 0 : 200);
+        }
+    }
     // ultimos eventos del GPU (el ultimo arriba)
     const u32 seq = gBox.seq;
-    for (int i = 0; i < 12; i++) {
-        if (seq < (u32)i + 1) { box_text(0, row++, "", 0, 0, 0); continue; }
+    for (int i = 0, shown = 0; i < kBoxEvents - 1 && shown < 5; i++) { // solo listas: son las que pueden colgar al GPU
+        if (seq < (u32)i + 1) { box_text(0, row++, "", 0, 0, 0); shown++; continue; }
         const BoxEvent& e = gBox.ev[(seq - i) % kBoxEvents];
+        if (e.kind != BOX_LIST) continue;
+        shown++;
         if (e.kind == BOX_LIST)
-            snprintf(b, sizeof b, "%lu f%lu %s %08lX %lup %lud%s", (unsigned long)e.seq, (unsigned long)e.frame, box_kind(e.kind),
-                     (unsigned long)e.a, (unsigned long)e.b, (unsigned long)e.c, e.bad ? " MAL" : "");
+            snprintf(b, sizeof b, "f%lu %lup %lud x2^%lu w0:%lu nan:%lu s%lX %04lX%s", (unsigned long)e.frame,
+                     (unsigned long)e.b, (unsigned long)e.c, (unsigned long)(e.a & 0xFF), (unsigned long)((e.a >> 8) & 0xFFF), (unsigned long)(e.a >> 20),
+                     (unsigned long)e.d, (unsigned long)e.badReg, e.bad ? " MAL" : "");
         else
             snprintf(b, sizeof b, "%lu f%lu %s %08lX>%08lX %lX%s", (unsigned long)e.seq, (unsigned long)e.frame, box_kind(e.kind),
                      (unsigned long)e.a, (unsigned long)e.b, (unsigned long)e.c, e.bad ? " MAL" : "");
-        box_text(0, row++, b, e.bad ? 255 : 160, e.bad ? 80 : 200, e.bad ? 80 : 255);
-    }
-    // ultimas lineas del registro
-    for (int i = 3; i >= 1; i--) {
-        const int k = (sRingPos - i + LOG_RING) % LOG_RING;
-        box_text(0, row++, sRingCount >= i ? sRing[k] : "", 150, 150, 150);
+        box_text(0, row++, b, e.bad || (e.kind == BOX_LIST && e.d) ? 255 : 160, e.bad ? 80 : 200, e.bad ? 80 : (e.kind == BOX_LIST && e.d) ? 80 : 255);
     }
     svcStoreProcessDataCache(CUR_PROCESS_HANDLE, (u32)sBoxFb, 240 * 320 * 3);
     // problemas nuevos: al registro de inmediato (el vigilante lo escribe en la SD en esta misma vuelta)
@@ -1942,6 +2635,7 @@ static void vigil(void*) {
     while (!sWatchQuit) {
         svcSleepThread(250000000LL);
         tick++;
+        if (sAptPaused || sAptExiting) { lastFrame = sFrames; stillMs = 0; nextReport = 5000; continue; } // en HOME: no es bloqueo
         if (sFrames != lastFrame) {
             if (stillMs >= 5000) {
                 snprintf(b, sizeof b, "[bloqueo] el juego volvio a dibujar despues de %lu s (cuadro %lu)\n", (unsigned long)(stillMs / 1000),
@@ -1952,7 +2646,7 @@ static void vigil(void*) {
         } else {
             stillMs += 250;
         }
-        if (stillMs >= nextReport) {
+        if (kLogs && stillMs >= nextReport) {
             sLogNoStdout = true; // desde aqui nadie escribe a la red: si stdout es lo trabado, no arrastra al registro
             vigil_state(a, sizeof a, stillMs, seq0, hi0, lo0);
             log_store(a);
@@ -1998,7 +2692,7 @@ static void vigil(void*) {
 #endif
             seq0 = sStMainSeq; hi0 = sBeatHi; lo0 = sBeatLo;
         }
-#ifdef PS_BLACKBOX
+#if defined(PS_BLACKBOX) && !defined(PS_BOXLITE)
         box_draw();
 #endif
         if ((tick % 20) == 0) log_write_out(); // cada 5 s
@@ -2007,7 +2701,7 @@ static void vigil(void*) {
 
 static u32 n64ToBlob(u32) { return 0; }
 
-static bool sGfxUp; // la pantalla ya se inicio (si no, show_report no tiene donde escribir)
+// (sGfxUp se declara arriba, junto a host_exit_game) la pantalla ya se inicio (si no, show_report no tiene donde escribir)
 static void fatal(const char* msg) {
     logf("\n%s\n", msg);
     if (!sGfxUp) { gfxInitDefault(); sGfxUp = true; }
@@ -2049,13 +2743,13 @@ int main(int argc, char** argv) {
     mkdir("sdmc:/3ds/pokestadium", 0777);
     RecursiveLock_Init(&sLogLock);
     RecursiveLock_Init(&sFileLock);
-    sLog = fopen(LOG_PATH, "w");
+    sLog = kLogs ? fopen(LOG_PATH, "w") : nullptr;
     if (sLog) {
         static char sLogBuf[64 * 1024]; // se vacia cada kDiagFlushMs: la SD no se toca en cada linea
         setvbuf(sLog, sLogBuf, _IOFBF, sizeof sLogBuf);
         sDiagLastFlush = svcGetSystemTick();
     }
-    link3dsStdio(); // si se lanzo con "3dslink -s", el texto llega a la PC
+    // (la conexion con 3dslink para ver el cierre en la PC se abre hasta salir: su memoria, 512 KB, le faltaba al juego)
 
     bool isNew = false;
     APT_CheckNew3DS(&isNew);
@@ -2082,7 +2776,7 @@ int main(int argc, char** argv) {
     dump_cleanup();
     gb_boot_menu(); // pantalla de abajo: cartuchos de los Transfer Pak y formato de imagen
     if (sGbTopLogo) { gb_top_logo(false); sGbTopLogo = false; } // la de arriba, en negro otra vez: ahi va el juego
-#ifdef PS_BLACKBOX
+#if defined(PS_BLACKBOX) && !defined(PS_BOXLITE)
     box_init();
 #endif
     Fast::gfx_set_target_ucode(ucode_f3dex2);
@@ -2123,7 +2817,8 @@ int main(int argc, char** argv) {
         { const u32 q = host_flag("quitar"); if (q != 0xFFFFFFFFu) gGfxConvertDbgDrop = q; }
         // L presionado al iniciar: ruta F1 (sin buffers residentes) para comparar en la misma compilacion
         hidScanInput();
-        if ((hidKeysHeld() | sGbBootHeld) & KEY_L) gGfxConvertF2 = false;
+        // (y sin copias retenidas de los modelos con huesos: las dos rutas especiales apagadas, para comparar)
+        if (((hidKeysHeld() | sGbBootHeld) & KEY_L) || host_flag("rutalenta") != 0xFFFFFFFFu) { gGfxConvertF2 = false; PsSkinSetRetain3DS(false); }
 #ifdef PS_F2_OFF
         gGfxConvertF2 = false;
 #endif
@@ -2267,6 +2962,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 21; i++) api[i] = __builtin_bswap32((u32)fns[i]);
     audio_init();
     audio_worker_start();
+    aptHook(&sAptCookie, apt_hook, nullptr);
     {
         s32 prio = 0x30;
         svcGetThreadPriority(&prio, CUR_THREAD_HANDLE);
@@ -2274,14 +2970,14 @@ int main(int argc, char** argv) {
             if (!threadCreate(watchdog, nullptr, 16 * 1024, prio - 1, -2, true)) logf("[host] no pude crear el vigilante\n");
         } else {
             // vigilante en el nucleo 1, arriba del audio (prio - 2): sigue vivo aunque el nucleo 0 este ocupado o trabado
-            sVigil = threadCreate(vigil, nullptr, 32 * 1024, prio - 3 > 0x18 ? prio - 3 : 0x18, 1, true);
-            if (!sVigil) sVigil = threadCreate(vigil, nullptr, 32 * 1024, prio - 1, -2, true);
+            sVigil = threadCreate(vigil, nullptr, 32 * 1024, prio - 3 > 0x18 ? prio - 3 : 0x18, 1, false);
+            if (!sVigil) sVigil = threadCreate(vigil, nullptr, 32 * 1024, prio - 1, -2, false);
             const bool beats = threadCreate(beat_hi, nullptr, 4096, 0x19, 0, true) && threadCreate(beat_lo, nullptr, 4096, prio + 1, 0, true);
             logf("[diag] vigilante: %s; latidos del nucleo 0: %s\n", sVigil ? "nucleo 1" : "NO SE PUDO CREAR", beats ? "si" : "no");
         }
     }
 
-    logf("Juego cargado (%lu KB). START+SELECT para salir\n", (unsigned long)(blob_bin_size / 1024));
+    logf("Juego cargado (%lu KB).%s\n", (unsigned long)(blob_bin_size / 1024), kDiag ? " START+SELECT para salir" : "");
     threadOnException((ExceptionHandler)ps_exc_entry, sExcStack + sizeof(sExcStack), WRITE_DATA_TO_HANDLER_STACK);
     ps_call_blob(BLOB_ENTRY, (u32)api);
     fatal("El juego regreso al host (inesperado)");

@@ -326,6 +326,118 @@ void func_84300E78(void) {
 void func_84300E80(void) {
 }
 
+#ifdef PORT
+/* PORT: pantalla gigante en la batalla con lo que se ve en la pantalla de abajo (320x240). Si esta la ROM japonesa va en
+ * el edificio de la pantalla de la entrada japonesa (marco, letrero y banderas), en el mismo lugar que en la entrada: el
+ * hueco del edificio (3200x2400 en su espacio) se llena con la imagen. Sin ella, un marco sencillo frente a las gradas
+ * del fondo. Va despues de la escena 3D con la misma camara, con z: los Pokemon la tapan. */
+extern u16 gPsJumboTex[80 * 32 * 32];
+extern u32 gPsJumboOn;
+extern u32 gPsJumboDbg[2];
+s32 ps_jp_battle_board(GraphNode* parent);
+s32 ps_jp_battle_board_mtx(f32 (*out)[4]);
+void guMtxF2L(float mf[4][4], Mtx* m);
+static s32 sJbBoard; /* 1: va en el edificio japones */
+/* el marco sencillo (sin la ROM japonesa) */
+#define JB_CY 330
+#define JB_Z (-1450) /* delante de las gradas del fondo (el campo llega a z -875, las gradas empiezan en -1000) */
+#define JB_W 640
+#define JB_H 480
+static Vtx sJbVtx[8 + 80 * 4];
+static s32 sJbInit = -1;
+static Mtx sJbMtx;
+static void ps_jumbo_vtx(Vtx* v, s32 x, s32 y, s32 z, s32 s, s32 t, u8 r, u8 g, u8 b) {
+    v->v.ob[0] = x; v->v.ob[1] = y; v->v.ob[2] = z; v->v.flag = 0;
+    v->v.tc[0] = s; v->v.tc[1] = t;
+    v->v.cn[0] = r; v->v.cn[1] = g; v->v.cn[2] = b; v->v.cn[3] = 255;
+}
+/* la imagen en 10x8 bloques de 32x32 (la ultima fila de bloques solo usa 16 renglones) sobre x0..x0+w, y1..y1-h, z */
+static void ps_jumbo_init(s32 board) {
+    s32 i, j, k = 8;
+    s32 x0, y1, z, w, h;
+    if (board) { x0 = -1600; y1 = 1200; z = 0; w = 3200; h = 2400; }
+    else { x0 = -JB_W / 2; y1 = JB_CY + JB_H / 2; z = JB_Z; w = JB_W; h = JB_H; }
+    ps_jumbo_vtx(&sJbVtx[0], x0 - 30, y1 + 30, z - 4, 0, 0, 230, 190, 40);
+    ps_jumbo_vtx(&sJbVtx[1], x0 + w + 30, y1 + 30, z - 4, 0, 0, 230, 190, 40);
+    ps_jumbo_vtx(&sJbVtx[2], x0 + w + 30, y1 - h - 30, z - 4, 0, 0, 160, 120, 20);
+    ps_jumbo_vtx(&sJbVtx[3], x0 - 30, y1 - h - 30, z - 4, 0, 0, 160, 120, 20);
+    ps_jumbo_vtx(&sJbVtx[4], x0 - 12, y1 + 12, z - 2, 0, 0, 14, 22, 80);
+    ps_jumbo_vtx(&sJbVtx[5], x0 + w + 12, y1 + 12, z - 2, 0, 0, 14, 22, 80);
+    ps_jumbo_vtx(&sJbVtx[6], x0 + w + 12, y1 - h - 12, z - 2, 0, 0, 8, 14, 50);
+    ps_jumbo_vtx(&sJbVtx[7], x0 - 12, y1 - h - 12, z - 2, 0, 0, 8, 14, 50);
+    for (j = 0; j < 8; j++) {
+        const s32 rows = j < 7 ? 32 : 16;
+        const s32 ya = y1 - j * 32 * h / 240, yb = y1 - (j * 32 + rows) * h / 240;
+        for (i = 0; i < 10; i++, k += 4) {
+            const s32 xa = x0 + i * w / 10, xb = x0 + (i + 1) * w / 10;
+            ps_jumbo_vtx(&sJbVtx[k + 0], xa, ya, z, 0, 0, 255, 255, 255);
+            ps_jumbo_vtx(&sJbVtx[k + 1], xb, ya, z, 32 << 5, 0, 255, 255, 255);
+            ps_jumbo_vtx(&sJbVtx[k + 2], xb, yb, z, 32 << 5, rows << 5, 255, 255, 255);
+            ps_jumbo_vtx(&sJbVtx[k + 3], xa, yb, z, 0, rows << 5, 255, 255, 255);
+        }
+    }
+    sJbInit = board;
+}
+static void ps_jumbo(Gfx* start) {
+    Gfx* g;
+    u32 pl = 0, pm = 0, cur = 0;
+    s32 t;
+    f32 bm[4][4];
+    s32 board = 0;
+    gPsJumboDbg[0]++;
+    if (1) return; /* la pantalla del estadio esta apagada por ahora (junto con la entrada japonesa) */
+    /* la ultima camara en perspectiva de la escena: una proyeccion cargada y luego multiplicada por la vista (las que
+     * solo se cargan son de 2D: letreros y efectos) */
+    for (g = start; g < gDisplayListHead; g++) {
+        if ((g->words.w0 >> 24) == 0xDA) {
+            const u32 p = (g->words.w0 & 0xFF) ^ G_MTX_PUSH;
+            if (p & G_MTX_PROJECTION) {
+                if (p & G_MTX_LOAD) cur = g->words.w1;
+                else if (cur) { pl = cur; pm = g->words.w1; cur = 0; }
+            }
+        }
+    }
+    if (!pl || !pm) return;
+    if (sJbBoard) {
+        if (!ps_jp_battle_board_mtx(bm)) return; /* el edificio aun no se dibuja */
+        board = 1;
+        guMtxF2L(bm, &sJbMtx);
+    }
+    if (sJbInit != board) ps_jumbo_init(board);
+    gPsJumboDbg[1]++;
+    gDPPipeSync(gDisplayListHead++);
+    gSPMatrix(gDisplayListHead++, pl, G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_PROJECTION);
+    gSPMatrix(gDisplayListHead++, pm, G_MTX_NOPUSH | G_MTX_MUL | G_MTX_PROJECTION);
+    gSPMatrix(gDisplayListHead++, board ? (u32)&sJbMtx : ((u32)&D_8006F010 & 0x1FFFFFFF), G_MTX_NOPUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
+    gDPSetCycleType(gDisplayListHead++, G_CYC_1CYCLE);
+    gDPSetRenderMode(gDisplayListHead++, G_RM_AA_ZB_OPA_SURF, G_RM_AA_ZB_OPA_SURF2);
+    gSPClearGeometryMode(gDisplayListHead++, G_LIGHTING | G_FOG | G_TEXTURE_GEN | G_TEXTURE_GEN_LINEAR | G_CULL_BOTH);
+    gSPSetGeometryMode(gDisplayListHead++, G_ZBUFFER | G_SHADE | G_SHADING_SMOOTH);
+    gSPTexture(gDisplayListHead++, 0, 0, 0, G_TX_RENDERTILE, G_OFF);
+    gDPSetCombineMode(gDisplayListHead++, G_CC_SHADE, G_CC_SHADE);
+    if (!board || !gPsJumboOn) { /* el marco propio, o el hueco del edificio oscuro mientras no hay imagen */
+        gSPVertex(gDisplayListHead++, sJbVtx, 8, 0);
+        if (!board) gSP2Triangles(gDisplayListHead++, 0, 3, 2, 0, 0, 2, 1, 0);
+        gSP2Triangles(gDisplayListHead++, 4, 7, 6, 0, 4, 6, 5, 0);
+    }
+    gDPPipeSync(gDisplayListHead++);
+    if (!gPsJumboOn) return; /* sin imagen todavia: la pantalla apagada */
+    gDPSetTexturePersp(gDisplayListHead++, G_TP_PERSP);
+    gDPSetTextureFilter(gDisplayListHead++, G_TF_BILERP);
+    gDPSetTextureLUT(gDisplayListHead++, G_TT_NONE);
+    gSPTexture(gDisplayListHead++, 0xFFFF, 0xFFFF, 0, G_TX_RENDERTILE, G_ON);
+    gDPSetCombineMode(gDisplayListHead++, G_CC_DECALRGB, G_CC_DECALRGB);
+    for (t = 0; t < 80; t++) {
+        gDPLoadTextureBlock(gDisplayListHead++, &gPsJumboTex[t * 32 * 32], G_IM_FMT_RGBA, G_IM_SIZ_16b, 32, 32, 0,
+                            G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMIRROR | G_TX_CLAMP, G_TX_NOMASK, G_TX_NOMASK, G_TX_NOLOD, G_TX_NOLOD);
+        gSPVertex(gDisplayListHead++, &sJbVtx[8 + t * 4], 4, 0);
+        gSP2Triangles(gDisplayListHead++, 0, 3, 2, 0, 0, 2, 1, 0);
+    }
+    gDPPipeSync(gDisplayListHead++);
+    gSPTexture(gDisplayListHead++, 0, 0, 0, G_TX_RENDERTILE, G_OFF);
+}
+#endif
+
 s32 func_84300E88(s32 arg0) {
     s32 sp1C;
 
@@ -339,7 +451,13 @@ s32 func_84300E88(s32 arg0) {
     func_84300750(D_8438E78C, D_8438E794);
     func_800079C4();
     func_84300340();
+#ifdef PORT
+    { Gfx* psJb = gDisplayListHead;
+#endif
     func_80015094(D_8438E784);
+#ifdef PORT
+    ps_jumbo(psJb); }
+#endif
     func_84307394(5, D_8438E798);
     func_84300B34(D_8438E788, D_8438E790);
     func_84300B34(D_8438E78C, D_8438E794);
@@ -365,7 +483,13 @@ s32 func_84300FBC(s32 arg0) {
         func_80032570();
         func_800079C4();
         func_84300340();
+#ifdef PORT
+        { Gfx* psJb = gDisplayListHead;
+#endif
         func_80015094(D_8438E784);
+#ifdef PORT
+        ps_jumbo(psJb); }
+#endif
         func_84307394(5, D_8438E798);
         func_84300B34(D_8438E788, D_8438E790);
         func_84300B34(D_8438E78C, D_8438E794);
@@ -585,6 +709,10 @@ void func_84301430(unk_func_80007444* arg0) {
         func_80012094(&D_8438E580, process_geo_layout(sp44, temp_v0_4));
     }
 
+#ifdef PORT
+    sJbBoard = 0; /* la pantalla va en el marco dorado frente a las gradas del fondo (no en el edificio japones) */
+    sJbInit = -1;
+#endif
     func_80002D60(sp44);
 
     temp_v0_7 = PS_FRAG_CALL(sp3C, 4, 0);
@@ -633,6 +761,7 @@ s32 func_84301A2C(s32 arg0, unk_D_800AE540* arg1) {
 
 #ifdef PORT
     { extern u32 gPsBatOn; gPsBatOn = 0; }
+    { extern void ps_jp_battle_board_end(void); ps_jp_battle_board_end(); sJbBoard = 0; } /* suelta los fragments japoneses */
 #endif
     main_pool_pop_state('BATL');
 

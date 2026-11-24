@@ -61,6 +61,7 @@ uint64_t gPsRetainStats3DS[6];
 extern "C" uint64_t gPsRetainSkip3DS[8];
 uint64_t gPsRetainSkip3DS[8];
 static uint32_t gPsRetainFrame3DS = 0;
+extern "C" { uint32_t gPsBadRetain3DS = 0; uint32_t gPsSlot0Fallback3DS = 0, gPsTmplFallback3DS = 0; } // copias para el GPU descartadas por vertices invalidos
 extern "C" void PsSkinSetGpuLit3DS(bool on) { gPsSkinGpuLit3DS = on; }
 static bool gPsSkinGpuEnabled3DS = true;
 extern "C" void PsSkinSetGpu3DS(bool on) { gPsSkinGpuEnabled3DS = on; }
@@ -69,7 +70,7 @@ extern "C" void PsSkinSetMerge3DS(bool on) { gPsSkinMerge3DS = on; }
 static int gPsSkinLo3DS = 0, gPsSkinHi3DS = 1 << 30, gPsSkinBlock3DS = 0;
 extern "C" void PsSkinSetRange3DS(int lo, int hi) { gPsSkinLo3DS = lo; gPsSkinHi3DS = hi; }
 static void PsRetainEvict3DS();
-extern "C" void PsSkinFrame3DS() { gPsSkinBlock3DS = 0; gPsRetainFrame3DS++; if ((gPsRetainFrame3DS & 63) == 0) PsRetainEvict3DS(); }
+extern "C" void PsRetainDeferTick3DS(); extern "C" void PsSkinFrame3DS() { PsRetainDeferTick3DS(); gPsSkinBlock3DS = 0; gPsRetainFrame3DS++; if ((gPsRetainFrame3DS & 63) == 0) PsRetainEvict3DS(); }
 
 extern "C" { int gPsSkinFogLog3DS = 0; int gPsSkinKindLog3DS = 0; void PsLog3DS(const char*, ...); }
 struct PsSkinGpu3DS {
@@ -187,6 +188,18 @@ struct PsSkinGpu3DS {
                     d.sph[k][3] = sqrtf(rr);
                 }
                 if (capBuf) {
+                    // la copia que va a quedar en el GPU: si algun vertice trae NaN, infinito o un valor absurdo (o un indice
+                    // de hueso fuera de rango), no se guarda; en la consola esos vertices colgaron al GPU (Sky Attack)
+                    const float* f = static_cast<const float*>(capBuf);
+                    bool bad = false;
+                    for (size_t v = 0; v < capVtx && !bad; v++) {
+                        const float* q = f + v * 10;
+                        for (int c = 0; c < 3; c++) if (!(q[c] > -1.0e5f && q[c] < 1.0e5f)) bad = true;
+                        if (!(q[3] >= 0.0f && q[3] <= float(slots * kPsSkinRows3DS))) bad = true;
+                    }
+                    if (bad) { PsRetainFree3DS(capBuf); captureFail = true; gPsRetainWhy3DS[6]++; gPsBadRetain3DS++; capBuf = nullptr; }
+                }
+                if (capBuf) {
                     capDraws.push_back(std::move(d));
                     gPsRetainStats3DS[1]++;
                     gPsRetainStats3DS[5] += capVtx * 40;
@@ -265,8 +278,10 @@ struct PsSkinGpu3DS {
         for (int t = 0; t < 2; ++t) {
             inverseWidth[t] = inverseHeight[t] = clampS[t] = clampT[t] = 0.0f;
             if (!m.usedTextures[t]) continue;
-            inverseWidth[t] = 1.0f / m.tex_width[t];
-            inverseHeight[t] = 1.0f / m.tex_height[t];
+            // una textura de lado 0 (el combinador la usa pero no hay nada cargado en su tile): en el N64 no pasa
+            // nada; aqui 1/0 daba infinito en los uniformes y el PICA200 se colgaba (Sky Attack, Earthquake)
+            inverseWidth[t] = m.tex_width[t] ? 1.0f / m.tex_width[t] : 0.0f;
+            inverseHeight[t] = m.tex_height[t] ? 1.0f / m.tex_height[t] : 0.0f;
             clampS[t] = (m.tex_width2[t] - 0.5f) * inverseWidth[t];
             clampT[t] = (m.tex_height2[t] - 0.5f) * inverseHeight[t];
         }
@@ -428,7 +443,7 @@ struct PsSkinGpu3DS {
             return;
         }
         if (slots >= kPsSkinMaxSlots3DS) submit(); // respaldo: nunca escribir fuera de la tabla
-        if (slots >= kPsSkinMaxSlots3DS) { gPsRetainWhy3DS[6]++; slotOfUsed = true; slotOf[b] = 0; return; }
+        if (slots >= kPsSkinMaxSlots3DS) { gPsRetainWhy3DS[6]++; gPsSlot0Fallback3DS++; slotOfUsed = true; slotOf[b] = 0; return; }
         const int sl = slots++;
         setSlot(b, sl, rows);
         if (bones[b] == 0) { std::memcpy(sentinelRows, rows, sizeof(rows)); sentinelSlot = sl; }
@@ -767,7 +782,7 @@ static bool PsRetReplay3DS(Interpreter* gfx, PsRetEntry3DS& e, const uint32_t* s
                             g.slotBone[k] = d.slotBone[k];
                             g.slotOf[d.slotBone[k]] = k;
                         }
-                        for (const auto& tv : d.tmpl) { const int tb = tv.bone < g.nBones ? tv.bone : 0; if (g.slotOf[tb] < 0) g.slotOf[tb] = 0; }
+                        for (const auto& tv : d.tmpl) { const int tb = tv.bone < g.nBones ? tv.bone : 0; if (g.slotOf[tb] < 0) { g.slotOf[tb] = 0; gPsTmplFallback3DS++; } }
                         float w;
                         size_t n = 0;
                         float* out = &gfx->mBufVbo[0];
@@ -777,6 +792,16 @@ static bool PsRetReplay3DS(Interpreter* gfx, PsRetEntry3DS& e, const uint32_t* s
                         sPsSkinPending3DS = true;
                         g.pendingCull = g.cull;
                         g.pendingLit = g.gpuLit;
+                        {   // la copia guardada en el GPU se revisa antes de usarla: si algo la ensucio (NaN, 1e38), no se dibuja
+                            const float* f = static_cast<const float*>(d.buf);
+                            const float maxIdx = float(d.nSlots * kPsSkinRows3DS);
+                            bool bad = false;
+                            for (size_t v = 0; v < d.nVtx && !bad; v++) {
+                                const float* q = f + v * 10;
+                                if (!(q[0] > -1.0e5f && q[0] < 1.0e5f && q[1] > -1.0e5f && q[1] < 1.0e5f && q[2] > -1.0e5f && q[2] < 1.0e5f && q[3] >= 0.0f && q[3] <= maxIdx)) bad = true;
+                            }
+                            if (bad) { gPsBadRetain3DS++; sPsSkinPending3DS = false; gfx->mBufVboLen = 0; gfx->mBufVboNumTris = 0; return; }
+                        }
                         gPsRetainBuf3DS = d.buf;
                         gPsRetainCount3DS = d.nVtx;
                         gPsRetainIdx3DS = idx;

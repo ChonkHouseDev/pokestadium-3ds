@@ -235,6 +235,15 @@ static const void* res_get(const char* path, unsigned int* size) {
 
 int strcmp(const char* a, const char* b);
 
+/* Segunda ROM (japonesa, opcional): asset ya descomprimido, o lectura cruda (ver port/ps_jp.c) */
+const void* ps_jp_res_get(u32 rom, u32 size, u32* outSize) { u32 n = 0; const void* p = sApi->res_get(rom | 0x40000000u, size, 1, &n); *outSize = n; return p; }
+u32 ps_jp_rom_read(u32 rom, void* dst, u32 size) { return sApi->rom_read(rom | 0x40000000u, dst, size); }
+/* Un archivo suelto de la ROM de la US (p. ej. un retrato): descomprimido */
+const void* ps_us_res_get(u32 rom, u32 size, u32* outSize) { u32 n = 0; const void* p = sApi->res_get(rom, size, 1, &n); *outSize = n; return p; }
+u32 ps_us_rom_read(u32 rom, void* dst, u32 size) { return sApi->rom_read(rom, dst, size); }
+/* El paquete de idioma elegido (lo abre el host) */
+u32 ps_lang_read(u32 off, void* dst, u32 size) { return sApi->rom_read(off | 0x20000000u, dst, size); }
+
 /* El bloque vive en 0x0A000000-0x0B400000: esas direcciones son nativas, no segmentos del N64 */
 int ps_platform_is_native(u32 a) { return a >= 0x0A000000u && a < 0x0B400000u; }
 extern u32 __ps_text_end[], __ps_bss_start[];

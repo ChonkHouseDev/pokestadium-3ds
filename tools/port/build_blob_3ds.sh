@@ -60,7 +60,7 @@ done
   for n in $(cd $ROOT/src/fragments && ls | sort -n); do [ "$n" = 1 ] || echo "    { $n, __ps_fd_${n}_start, __ps_fd_${n}_end, __ps_fb_${n}_start, __ps_fb_${n}_end },"; done
   echo "};"; } >> $OUT/gen/ps_frag_data.h
 GAMEFLAGS_PORT="$GAMEFLAGS -I$OUT/gen"; [ -n "${PS_NOFRAGRESET:-}" ] || GAMEFLAGS_PORT="$GAMEFLAGS_PORT -DPS_FRAG_DATA"   # PS_NOFRAGRESET=1: sin devolver los datos (para comparar)
-for f in port/ps_assets.c port/ps_frag.c port/ps_core.c port/ps_mips_stub.c port/generated/ps_asset_index.c port/generated/ps_frag_syms.c \
+for f in port/ps_assets.c port/ps_jp.c port/ps_frag.c port/ps_core.c port/ps_mips_stub.c port/generated/ps_asset_index.c port/generated/ps_frag_syms.c \
          port/os/os_thread.c port/os/os_events.c port/os/os_misc.c \
          platform/3ds/blob/blob_host.c platform/3ds/blob/fiber_arm.c platform/3ds/blob/blob_libc.c; do
   $CC $GAMEFLAGS_PORT -std=gnu99 $GAMEINC -I$ROOT/port/os -c $ROOT/$f -o $OUT/port/$(basename $f).o
@@ -82,9 +82,35 @@ done
 $CC $GAMEFLAGS -std=gnu99 $GAMEINC -I$ROOT/port/os -I$HLE -c $ROOT/port/ps_rsp_hle.c -o $OUT/port/ps_rsp_hle.c.o
 $CC -c $ROOT/platform/3ds/blob/blob_asm.S -o $OUT/port/blob_asm.o
 
+# Entrada de batalla del Stadium japones (opcional): PS_JP_DECOMP=<decomp pokestadium0> PS_US_SYMS=<carpeta con symbol_addrs*.txt de EE. UU.>
+# Sin esas variables el bloque queda igual que siempre (ps_jp.c trae tablas vacias).
+rm -f $OUT/port/jp_scene.o $OUT/port/ps_jp_tables.c.o $OUT/gen/jp_syms.ld; : > $OUT/gen/jp_syms.ld
+if [ -n "${PS_JP_DECOMP:-}" ]; then
+  J=$PS_JP_DECOMP; mkdir -p $OUT/jp; rm -f $OUT/jp/*.o
+  JPINC="-I$J/include -I$J/src -I$J/lib/ultralib/include -I$J/lib/ultralib/include/PR -I$J/lib/ultralib/include/ido"
+  # la escena, y el codigo que traen sus fragments de datos (fuego, tarjetas, tablero de resultados, insignias)
+  for f in $J/src/fragments/vs_scene/vs_scene.c $J/src/fragments/vs_trainer_panel/vs_trainer_panel.c $J/src/fragments/particle_data/*.c \
+           $J/src/fragments/vs_results_board/vs_results_board.c $J/src/fragments/tournament_badge_cap/tournament_badge_cap.c \
+           $ROOT/port/jp/ps_jp_extra.c $ROOT/port/jp/ps_jp_scene.c; do
+    # copia de trabajo: las comprobaciones de arranque de esos fragments leen registros del N64 (0xA4600010: estado del
+    # cartucho). Se deja "ocupado" (3) para que se salten: no hay cartucho que revisar.
+    # y el cuadro que dibuja a la imagen aparte se reemplaza por el de port/jp/ps_jp_scene.c (ver ahi)
+    sed -e 's/(\*(volatile s32 \*)0xA4600010)/3/g' -e 's/^s32 VsScene_DrawFrameToImage(s32 unused) {/s32 VsScene_DrawFrameToImage(s32 unused);\ns32 VsScene_DrawFrameToImage_orig(s32 unused) {/' -e 's/^s32 VsScene_DrawFrame(s32 unused) {/s32 VsScene_DrawFrame(s32 unused);\ns32 VsScene_DrawFrame_orig(s32 unused) {/' $f > $OUT/jp/$(basename $f)
+    $CC ${OPT:--O2} -g -w -ffreestanding -fno-builtin -fno-pic -fno-strict-aliasing -fwrapv -funsigned-char -D_LANGUAGE_C -DF3DEX_GBI_2 -DPORT '-Dsize_t=unsigned int' \
+      $JPINC -I$ROOT/port/jp -I$(dirname $f) -c $OUT/jp/$(basename $f) -o $OUT/jp/$(basename $f).o || { echo "FALLO $f"; exit 1; }
+  done
+  arm-none-eabi-ld -EB -r $OUT/jp/*.c.o -o $OUT/jp/jp_all.o
+  arm-none-eabi-nm $OUT/jp/jp_all.o > $OUT/jp/nm_jp.txt
+  arm-none-eabi-nm $OUT/obj/*.o > $OUT/jp/nm_blob.txt
+  python3 $ROOT/tools/port/gen_jp_scene.py $OUT/jp/nm_jp.txt $J/linker_scripts/jp/symbol_addrs.txt $PS_US_SYMS $OUT/jp/nm_blob.txt \
+    $OUT/jp/ren.txt $OUT/gen/jp_syms.ld $OUT/jp/ps_jp_tables.c || exit 1
+  arm-none-eabi-objcopy --redefine-syms=$OUT/jp/ren.txt $OUT/jp/jp_all.o $OUT/port/jp_scene.o
+  $CC $GAMEFLAGS -std=gnu99 -I$ROOT/port -c $OUT/jp/ps_jp_tables.c -o $OUT/port/ps_jp_tables.c.o
+fi
+
 # Statics: primero la tabla en ceros, luego con las direcciones reales (mismo tamano: nada se mueve)
 link() { arm-none-eabi-ld -EB --be8 -L $OUT/gen -T $ROOT/platform/3ds/blob/blob.ld -Map $OUT/blob.map -o $OUT/blob.elf \
-  $OUT/obj/*.o $OUT/data/*.o $OUT/port/*.o $OUT/static/ps_static_syms.o $ROOT/port/generated/syms.ld 2> $OUT/link.err || { grep -m30 "undefined\|multiple" $OUT/link.err; exit 1; }; }
+  $OUT/obj/*.o $OUT/data/*.o $OUT/port/*.o $OUT/static/ps_static_syms.o $ROOT/port/generated/syms.ld $OUT/gen/jp_syms.ld 2> $OUT/link.err || { grep -m30 "undefined\|multiple" $OUT/link.err; exit 1; }; }
 mkdir -p $OUT/static
 arm-none-eabi-nm $OUT/obj/*.o > $OUT/static/nm_obj.txt
 python3 $ROOT/tools/port/gen_static_syms.py $OUT/static/nm_obj.txt $OUT/static/ps_static_syms.c --placeholder > /dev/null

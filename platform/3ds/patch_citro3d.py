@@ -22,6 +22,86 @@ def rep(old, new):
 
 
 # --- fuentes con bandera "1 - x" ---
+# Malla estatica con niebla: el flujo de posiciones se mandaba con paso de 40 bytes pero solo 24 bytes de atributos.
+# Es un caso documentado (3dbrew, GPU/Pitfalls): si el paso declarado no coincide con el tamano de los atributos, el
+# PICA200 se congela o no dibuja; en el emulador no pasa nada. Se completa con un atributo de relleno de 16 bytes.
+rep("""        BufInfo_Add(bufferInfo, draw.vertices, sizeof(PackedVertex), 2, 0x10);""",
+    """        BufInfo_Add(bufferInfo, draw.vertices, sizeof(PackedVertex), 3, 0xF10); // 0xF: relleno de 16 bytes
+        { static unsigned n; if ((n++ % 2000) == 0) PsLog3DS("[gfx] malla estatica con niebla: %u dibujos\\n", n); }""")
+# Recorte de banda de guarda. El original solo recorta contra el ojo (w = 0.0001): un triangulo que cruza la camara o
+# que se sale mucho de la pantalla llega al GPU con vertices a millones de veces el ancho de la pantalla. El emulador
+# lo aguanta; con el PICA200 de la consola hay cuadros asi que no terminan nunca (Earthquake, la camara del VS pasando
+# sobre las gradas). Ahora, ademas del ojo, se recorta contra |x| y |y| <= 3 w: al GPU no le llega nada mas alla de
+# tres pantallas. Lo que se quita esta fuera de la vista. (No aplica con la geometria en espacio de objeto.)
+rep("""size_t ClipTriangleAgainstW(const float* vertices[3], size_t stride, float* output) {""",
+    """extern "C" void PsLog3DS(const char* fmt, ...);
+extern "C" { volatile unsigned gPsBadVtx3DS; }
+constexpr float kPsGuard3DS = 3.0f;
+static bool sPsGuardOn3DS = false;
+static inline float PsClipDist3DS(const float* v, int plane) {
+    switch (plane) {
+        case 0: return v[3] - kClipWEpsilon;
+        case 1: return kPsGuard3DS * v[3] - v[0];
+        case 2: return kPsGuard3DS * v[3] + v[0];
+        case 3: return kPsGuard3DS * v[3] - v[1];
+        default: return kPsGuard3DS * v[3] + v[1];
+    }
+}
+static inline bool PsOutsideGuard3DS(const float* v) {
+    const float g = kPsGuard3DS * v[3];
+    return sPsGuardOn3DS && (v[0] > g || v[0] < -g || v[1] > g || v[1] < -g);
+}
+// hasta 18 vertices (6 triangulos) por triangulo
+size_t ClipTriangleAgainstW(const float* vertices[3], size_t stride, float* output) {
+    static float bufA[10][kMaxVertexStrideFloats], bufB[10][kMaxVertexStrideFloats];
+    float (*in)[kMaxVertexStrideFloats] = bufA;
+    float (*out)[kMaxVertexStrideFloats] = bufB;
+    int n = 3;
+    for (int i = 0; i < 3; ++i) std::copy_n(vertices[i], stride, in[i]);
+    const int planes = sPsGuardOn3DS ? 5 : 1;
+    for (int plane = 0; plane < planes; ++plane) {
+        int m = 0;
+        for (int i = 0; i < n; ++i) {
+            const float* cur = in[i];
+            const float* nxt = in[(i + 1) % n];
+            const float dc = PsClipDist3DS(cur, plane), dn = PsClipDist3DS(nxt, plane);
+            if (dc >= 0.0f) std::copy_n(cur, stride, out[m++]);
+            if ((dc >= 0.0f) != (dn >= 0.0f)) {
+                const float t = dc / (dc - dn);
+                float* c = out[m++];
+                for (size_t k = 0; k < stride; ++k) c[k] = cur[k] + (nxt[k] - cur[k]) * t;
+            }
+        }
+        std::swap(in, out);
+        n = m;
+        if (n < 3) return 0;
+    }
+    size_t count = 0;
+    for (int i = 2; i < n; ++i) {
+        std::copy_n(in[0], stride, output + count++ * stride);
+        std::copy_n(in[i - 1], stride, output + count++ * stride);
+        std::copy_n(in[i], stride, output + count++ * stride);
+    }
+    return count;
+}
+size_t ClipTriangleAgainstWOriginal3DS(const float* vertices[3], size_t stride, float* output) {""")
+rep("""        needsClipping |= w < kClipWEpsilon;""",
+    """        needsClipping |= w < kClipWEpsilon || PsOutsideGuard3DS(bufVbo + vertex * program->strideFloats);""")
+rep("""        mImpl->clipScratch.resize(sourceTriangleCount * 6 * program->strideFloats);""",
+    """        mImpl->clipScratch.resize((kMaxDrawVertices + 18) * program->strideFloats);""")
+rep("""            if (insideCount == 3) {
+                std::copy_n(triangleVertices[0], 3 * program->strideFloats,""",
+    """            if (clippedVertexCount + 18 > kMaxDrawVertices) break;
+            if (insideCount == 3 && !PsOutsideGuard3DS(triangleVertices[0]) && !PsOutsideGuard3DS(triangleVertices[1]) &&
+                !PsOutsideGuard3DS(triangleVertices[2])) {
+                std::copy_n(triangleVertices[0], 3 * program->strideFloats,""")
+rep("""    const float* drawVertices = bufVbo;
+    size_t vertexCount = sourceVertexCount;
+    bool needsClipping = false;""",
+    """    const float* drawVertices = bufVbo;
+    size_t vertexCount = sourceVertexCount;
+    sPsGuardOn3DS = !mImpl->nativeGeometry.enabled && !(gPsSkinActive3DS && mImpl->psSkinUniform >= 0 && mImpl->psSkinBonesUniform >= 0);
+    bool needsClipping = false;""")
 rep("GPU_TEVSRC SourceToTev(int source, int varyingInput, int cycle) {\n",
     "GPU_TEVSRC SourceToTev(int source, int varyingInput, int cycle) {\n    source &= 0x7F;\n")
 rep("""GPU_TEVOP_RGB SourceToRgbOperand(int source) {
@@ -129,6 +209,8 @@ src = src[:i] + """
 // Lote de huesos activo (lo llena el comando G_PS_SKIN del interprete justo antes de Flush)
 extern "C" {
 bool gPsSkinActive3DS = false;
+// Al GPU nunca le llega un NaN ni un infinito en las filas de los huesos: el PICA200 de la consola se cuelga con ellos.
+static inline float PsFinite3DS(float v) { uint32_t u; __builtin_memcpy(&u, &v, 4); return (u & 0x7F800000u) == 0x7F800000u ? 0.0f : v; }
 float gPsSkinRows3DS[66][4];  // por hueso, 6 filas: 4 de MV*P (columnas) + direccion de las 2 luces en su espacio
 int gPsSkinRowCount3DS = 0;
 bool gPsSkinLit3DS = false;   // luz en el GPU (la normal va en el color)
@@ -165,8 +247,8 @@ draw_old = "    C3D_DrawArrays(GPU_TRIANGLES, static_cast<int>(firstVertex), sta
 rep(draw_old, """    if (psSkin) {
         auto* rows = C3D_FVUnifWritePtr(GPU_VERTEX_SHADER, mImpl->psSkinBonesUniform, gPsSkinRowCount3DS);
         for (int r = 0; r < gPsSkinRowCount3DS; ++r) {
-            rows[r].x = gPsSkinRows3DS[r][0]; rows[r].y = gPsSkinRows3DS[r][1];
-            rows[r].z = gPsSkinRows3DS[r][2]; rows[r].w = gPsSkinRows3DS[r][3];
+            rows[r].x = PsFinite3DS(gPsSkinRows3DS[r][0]); rows[r].y = PsFinite3DS(gPsSkinRows3DS[r][1]);
+            rows[r].z = PsFinite3DS(gPsSkinRows3DS[r][2]); rows[r].w = PsFinite3DS(gPsSkinRows3DS[r][3]);
         }
         C3D_BoolUnifSet(GPU_VERTEX_SHADER, mImpl->psSkinUniform, true);
         if (mImpl->psSkinLitUniform >= 0) {
@@ -203,7 +285,24 @@ extern "C" void* PsRetainAlloc3DS(size_t bytes) {
     if (linearSpaceFree() < bytes + (6u << 20)) return nullptr;
     return linearAlloc(bytes);
 }
-extern "C" void PsRetainFree3DS(void* p) { if (p) linearFree(p); }
+// Los buferes retenidos se sueltan 4 cuadros despues: el GPU dibuja un cuadro atrasado, y si se soltaban al momento
+// (al volver a capturar un lote) la memoria se volvia a usar mientras el GPU todavia la leia. En la consola eso dio
+// vertices con NaN y valores de 1e38 en dibujos con huesos y colgo al GPU (captura con Earthquake y Sky Attack).
+static void* sPsRetDefer3DS[512]; static uint32_t sPsRetDeferAt3DS[512]; static uint32_t sPsRetDeferN3DS, sPsRetDeferFrame3DS;
+extern "C" void PsRetainFree3DS(void* p) {
+    if (!p) return;
+    if (sPsRetDeferN3DS == 512) { linearFree(sPsRetDefer3DS[0]); for (uint32_t i = 1; i < 512; i++) { sPsRetDefer3DS[i - 1] = sPsRetDefer3DS[i]; sPsRetDeferAt3DS[i - 1] = sPsRetDeferAt3DS[i]; } sPsRetDeferN3DS--; }
+    sPsRetDefer3DS[sPsRetDeferN3DS] = p; sPsRetDeferAt3DS[sPsRetDeferN3DS] = sPsRetDeferFrame3DS; sPsRetDeferN3DS++;
+}
+extern "C" void PsRetainDeferTick3DS() {
+    sPsRetDeferFrame3DS++;
+    uint32_t k = 0;
+    for (uint32_t i = 0; i < sPsRetDeferN3DS; i++) {
+        if (sPsRetDeferFrame3DS - sPsRetDeferAt3DS[i] >= 4) linearFree(sPsRetDefer3DS[i]);
+        else { sPsRetDefer3DS[k] = sPsRetDefer3DS[i]; sPsRetDeferAt3DS[k] = sPsRetDeferAt3DS[i]; k++; }
+    }
+    sPsRetDeferN3DS = k;
+}
 """ + src[i:]
 # dibujar de un buffer retenido: no se empaca
 rep("""        const bool reuseConvertedVertices = vertexCount >= 6;""",
@@ -543,5 +642,50 @@ src = src.replace("\nnamespace", "\nextern \"C\" uint32_t gPsClearRgba3DS;\nuint
 # pixel "dibujado" (bit de alfa del RGBA16): un triangulo cambio la z, o un rectangulo opaco dejo alfa en el color
 rep("""const bool drawn = ztex ? (zscratch[size_t(ty) * tw + tx] != zclear || fillA) : A >= 128;""",
     """const bool drawn = ztex ? (zscratch[size_t(ty) * tw + tx] != zclear || fillA || A >= 128) : A >= 128;""")
+# por que no se pudo esperar al GPU para reusar texturas (si falla, el cuadro se corta y se vacia el cache): 1 sin cuadro,
+# 2 sin destino, 3 la espera fallo. Para el registro y la caja negra.
+rep("""bool GfxRenderingAPICitro3D::FenceTextureReuseBatch() {
+    if (!mImpl->frameActive || mImpl->activeTarget == nullptr) return false;""",
+    """extern "C" { uint32_t gPsFenceWhy3DS[4]; }
+bool GfxRenderingAPICitro3D::FenceTextureReuseBatch() {
+    if (!mImpl->frameActive) { gPsFenceWhy3DS[1]++; return false; }
+    if (mImpl->activeTarget == nullptr) { gPsFenceWhy3DS[2]++; return false; }""")
+rep("""        });
+    if (!completed) return false;
+    mImpl->frameBeginWaitMicroseconds +=""", """        });
+    if (!completed) { gPsFenceWhy3DS[3]++; return false; }
+    gPsFenceWhy3DS[0]++;
+    mImpl->frameBeginWaitMicroseconds +=""")
+
 open(sys.argv[2], "w").write(src)
 
+
+# Documentado en 3dbrew (GPU/Internal Registers): un NaN o un infinito en lo que consume el GPU lo deja colgado, y con el
+# al modulo de video del sistema (por eso HOME tampoco responde). Antes de mandar los vertices se revisan todos sus
+# flotantes: posicion, coordenadas de textura, coordenada de niebla y profundidad. Un vertice con la posicion o la
+# profundidad invalidas anula su triangulo; una coordenada invalida se pone en cero.
+rep("""            if (reuseConvertedVertices) conversions.Store(source, destination);
+        }
+    }
+""", """            if (reuseConvertedVertices) conversions.Store(source, destination);
+        }
+        {
+            uint32_t* words = reinterpret_cast<uint32_t*>(&mImpl->packedVertices[firstVertex]);
+            for (size_t vertex = 0; vertex < vertexCount; ++vertex) {
+                uint32_t* w = words + vertex * 10;
+                bool kill = false;
+                for (int k = 0; k < 10; ++k) {
+                    if (k == 8 || (w[k] & 0x7F800000u) != 0x7F800000u) continue;
+                    ++gPsBadVtx3DS;
+                    if (k < 4 || k == 9) kill = true; else w[k] = 0;
+                }
+                if (kill) {
+                    uint32_t* t = words + (vertex - vertex % 3) * 10;
+                    for (size_t j = 0; j < 3 && (vertex - vertex % 3) + j < vertexCount; ++j, t += 10) {
+                        t[0] = 0; t[1] = 0; t[2] = 0; t[3] = 0x3F800000u; t[9] = 0;
+                    }
+                }
+            }
+        }
+    }
+""")

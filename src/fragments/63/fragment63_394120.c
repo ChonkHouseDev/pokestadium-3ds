@@ -1217,6 +1217,9 @@ s32 func_84B03194(s32 arg0, UNUSED s32 arg1) {
     main_pool_push_state('EYEC');
     func_80028AFC(2);
     func_80027FA0(&D_84B26670, D_800AE540.unk_11F2);
+#ifdef PORT
+    { extern void ps_prof_apply(void); ps_prof_apply(); } /* el nombre del perfil del jugador (despues de leer la partida) */
+#endif
     func_80005E40(0x18000, 0);
     sp2C = func_80007444(0, 1, 3, 1, 2, 1);
     func_8001E94C(0x17, 0);
