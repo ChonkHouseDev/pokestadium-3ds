@@ -1,0 +1,282 @@
+textdata_header:
+  symbol: textdata_header
+  type: STADIUM:RAW
+  offset: 0x783760
+  size: 0x2F0
+
+textdata_000:
+  symbol: textdata_000
+  type: STADIUM:TEXT
+  offset: 0x783A50
+  size: 0x400
+
+textdata_001:
+  symbol: textdata_001
+  type: STADIUM:TEXT
+  offset: 0x783E50
+  size: 0x1B0
+
+textdata_002:
+  symbol: textdata_002
+  type: STADIUM:TEXT
+  offset: 0x784000
+  size: 0x430
+
+textdata_003:
+  symbol: textdata_003
+  type: STADIUM:TEXT
+  offset: 0x784430
+  size: 0x280
+
+textdata_004:
+  symbol: textdata_004
+  type: STADIUM:TEXT
+  offset: 0x7846B0
+  size: 0x300
+
+textdata_005:
+  symbol: textdata_005
+  type: STADIUM:TEXT
+  offset: 0x7849B0
+  size: 0x6B0
+
+textdata_006:
+  symbol: textdata_006
+  type: STADIUM:TEXT
+  offset: 0x785060
+  size: 0x140
+
+textdata_007:
+  symbol: textdata_007
+  type: STADIUM:TEXT
+  offset: 0x7851A0
+  size: 0x150
+
+textdata_008:
+  symbol: textdata_008
+  type: STADIUM:TEXT
+  offset: 0x7852F0
+  size: 0xC0
+
+textdata_009:
+  symbol: textdata_009
+  type: STADIUM:TEXT
+  offset: 0x7853B0
+  size: 0x490
+
+textdata_010:
+  symbol: textdata_010
+  type: STADIUM:TEXT
+  offset: 0x785840
+  size: 0x44D0
+
+textdata_011:
+  symbol: textdata_011
+  type: STADIUM:TEXT
+  offset: 0x789D10
+  size: 0x3B40
+
+textdata_012:
+  symbol: textdata_012
+  type: STADIUM:TEXT
+  offset: 0x78D850
+  size: 0x1CB0
+
+textdata_013:
+  symbol: textdata_013
+  type: STADIUM:TEXT
+  offset: 0x78F500
+  size: 0x180
+
+textdata_014:
+  symbol: textdata_014
+  type: STADIUM:TEXT
+  offset: 0x78F680
+  size: 0x6C0
+
+textdata_015:
+  symbol: textdata_015
+  type: STADIUM:TEXT
+  offset: 0x78FD40
+  size: 0x120
+
+textdata_016:
+  symbol: textdata_016
+  type: STADIUM:TEXT
+  offset: 0x78FE60
+  size: 0x380
+
+textdata_017:
+  symbol: textdata_017
+  type: STADIUM:TEXT
+  offset: 0x7901E0
+  size: 0x30
+
+textdata_018:
+  symbol: textdata_018
+  type: STADIUM:TEXT
+  offset: 0x790210
+  size: 0x170
+
+textdata_019:
+  symbol: textdata_019
+  type: STADIUM:TEXT
+  offset: 0x790380
+  size: 0x1E0
+
+textdata_020:
+  symbol: textdata_020
+  type: STADIUM:TEXT
+  offset: 0x790560
+  size: 0x80
+
+textdata_021:
+  symbol: textdata_021
+  type: STADIUM:TEXT
+  offset: 0x7905E0
+  size: 0x120
+
+textdata_022:
+  symbol: textdata_022
+  type: STADIUM:TEXT
+  offset: 0x790700
+  size: 0x20
+
+textdata_023:
+  symbol: textdata_023
+  type: STADIUM:TEXT
+  offset: 0x790720
+  size: 0x310
+
+textdata_024:
+  symbol: textdata_024
+  type: STADIUM:TEXT
+  offset: 0x790A30
+  size: 0x80
+
+textdata_025:
+  symbol: textdata_025
+  type: STADIUM:TEXT
+  offset: 0x790AB0
+  size: 0x1B0
+
+textdata_026:
+  symbol: textdata_026
+  type: STADIUM:TEXT
+  offset: 0x790C60
+  size: 0x670
+
+textdata_027:
+  symbol: textdata_027
+  type: STADIUM:TEXT
+  offset: 0x7912D0
+  size: 0x3E0
+
+textdata_028:
+  symbol: textdata_028
+  type: STADIUM:TEXT
+  offset: 0x7916B0
+  size: 0x2F0
+
+textdata_029:
+  symbol: textdata_029
+  type: STADIUM:TEXT
+  offset: 0x7919A0
+  size: 0xAC0
+
+textdata_030:
+  symbol: textdata_030
+  type: STADIUM:TEXT
+  offset: 0x792460
+  size: 0x1010
+
+textdata_031:
+  symbol: textdata_031
+  type: STADIUM:TEXT
+  offset: 0x793470
+  size: 0x200
+
+textdata_032:
+  symbol: textdata_032
+  type: STADIUM:TEXT
+  offset: 0x793670
+  size: 0x1370
+
+textdata_033:
+  symbol: textdata_033
+  type: STADIUM:TEXT
+  offset: 0x7949E0
+  size: 0x310
+
+textdata_034:
+  symbol: textdata_034
+  type: STADIUM:TEXT
+  offset: 0x794CF0
+  size: 0x1E0
+
+textdata_035:
+  symbol: textdata_035
+  type: STADIUM:TEXT
+  offset: 0x794ED0
+  size: 0x1E0
+
+textdata_036:
+  symbol: textdata_036
+  type: STADIUM:TEXT
+  offset: 0x7950B0
+  size: 0x750
+
+textdata_037:
+  symbol: textdata_037
+  type: STADIUM:TEXT
+  offset: 0x795800
+  size: 0x8B0
+
+textdata_038:
+  symbol: textdata_038
+  type: STADIUM:TEXT
+  offset: 0x7960B0
+  size: 0xB0
+
+textdata_039:
+  symbol: textdata_039
+  type: STADIUM:TEXT
+  offset: 0x796160
+  size: 0x890
+
+textdata_040:
+  symbol: textdata_040
+  type: STADIUM:TEXT
+  offset: 0x7969F0
+  size: 0x700
+
+textdata_041:
+  symbol: textdata_041
+  type: STADIUM:TEXT
+  offset: 0x7970F0
+  size: 0x50
+
+textdata_042:
+  symbol: textdata_042
+  type: STADIUM:TEXT
+  offset: 0x797140
+  size: 0x10
+
+textdata_043:
+  symbol: textdata_043
+  type: STADIUM:TEXT
+  offset: 0x797150
+  size: 0x200
+
+textdata_044:
+  symbol: textdata_044
+  type: STADIUM:TEXT
+  offset: 0x797350
+  size: 0xB10
+
+textdata_045:
+  symbol: textdata_045
+  type: STADIUM:TEXT
+  offset: 0x797E60
+  size: 0xE70
+

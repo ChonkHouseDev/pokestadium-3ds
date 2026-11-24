@@ -1,0 +1,6 @@
+album_ui:
+  symbol: album_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x69D090
+  size: 0xC6C0
+

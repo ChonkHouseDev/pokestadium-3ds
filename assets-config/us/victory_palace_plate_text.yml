@@ -1,0 +1,6 @@
+victory_palace_plate_text:
+  symbol: victory_palace_plate_text
+  type: STADIUM:PERS_SZP
+  offset: 0x6C1AB0
+  size: 0x3230
+

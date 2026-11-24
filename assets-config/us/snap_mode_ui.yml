@@ -1,0 +1,6 @@
+snap_mode_ui:
+  symbol: snap_mode_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x7994B0
+  size: 0x1B00
+

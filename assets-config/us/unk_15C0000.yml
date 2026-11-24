@@ -1,0 +1,6 @@
+unk_15C0000:
+  symbol: unk_15C0000
+  type: STADIUM:RAW
+  offset: 0x15C0000
+  size: 0xA2C050
+

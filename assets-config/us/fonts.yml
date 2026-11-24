@@ -1,0 +1,42 @@
+fonts_header:
+  symbol: fonts_header
+  type: STADIUM:RAW
+  offset: 0x3BA190
+  size: 0x70
+
+fonts_000:
+  symbol: fonts_000
+  type: STADIUM:PERS_SZP
+  offset: 0x3BA200
+  size: 0x680
+
+fonts_001:
+  symbol: fonts_001
+  type: STADIUM:PERS_SZP
+  offset: 0x3BA880
+  size: 0x710
+
+fonts_002:
+  symbol: fonts_002
+  type: STADIUM:PERS_SZP
+  offset: 0x3BAF90
+  size: 0x2140
+
+fonts_003:
+  symbol: fonts_003
+  type: STADIUM:PERS_SZP
+  offset: 0x3BD0D0
+  size: 0x3D80
+
+fonts_004:
+  symbol: fonts_004
+  type: STADIUM:PERS_SZP
+  offset: 0x3C0E50
+  size: 0x4050
+
+fonts_005:
+  symbol: fonts_005
+  type: STADIUM:PERS_SZP
+  offset: 0x3C4EA0
+  size: 0x6290
+

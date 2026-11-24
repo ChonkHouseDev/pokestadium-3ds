@@ -1,0 +1,6 @@
+run_rattata_run_flag_gfx:
+  symbol: run_rattata_run_flag_gfx
+  type: STADIUM:PERS_SZP
+  offset: 0x6C4CE0
+  size: 0x170
+

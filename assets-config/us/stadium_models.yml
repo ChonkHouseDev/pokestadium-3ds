@@ -1,0 +1,114 @@
+stadium_models_header:
+  symbol: stadium_models_header
+  type: STADIUM:RAW
+  offset: 0x56E7D0
+  size: 0x130
+
+stadium_models_000:
+  symbol: stadium_models_000
+  type: STADIUM:PERS_SZP
+  offset: 0x56E900
+  size: 0x6150
+
+stadium_models_001:
+  symbol: stadium_models_001
+  type: STADIUM:PERS_SZP
+  offset: 0x574A50
+  size: 0x4BC0
+
+stadium_models_002:
+  symbol: stadium_models_002
+  type: STADIUM:PERS_SZP
+  offset: 0x579610
+  size: 0x4880
+
+stadium_models_003:
+  symbol: stadium_models_003
+  type: STADIUM:PERS_SZP
+  offset: 0x579610
+  size: 0x4880
+
+stadium_models_004:
+  symbol: stadium_models_004
+  type: STADIUM:PERS_SZP
+  offset: 0x57DE90
+  size: 0x4430
+
+stadium_models_005:
+  symbol: stadium_models_005
+  type: STADIUM:PERS_SZP
+  offset: 0x5822C0
+  size: 0x2B10
+
+stadium_models_006:
+  symbol: stadium_models_006
+  type: STADIUM:PERS_SZP
+  offset: 0x584DD0
+  size: 0x38F0
+
+stadium_models_007:
+  symbol: stadium_models_007
+  type: STADIUM:PERS_SZP
+  offset: 0x5886C0
+  size: 0x6850
+
+stadium_models_008:
+  symbol: stadium_models_008
+  type: STADIUM:PERS_SZP
+  offset: 0x58EF10
+  size: 0x6D70
+
+stadium_models_009:
+  symbol: stadium_models_009
+  type: STADIUM:PERS_SZP
+  offset: 0x595C80
+  size: 0x67A0
+
+stadium_models_010:
+  symbol: stadium_models_010
+  type: STADIUM:PERS_SZP
+  offset: 0x59C420
+  size: 0x6E20
+
+stadium_models_011:
+  symbol: stadium_models_011
+  type: STADIUM:PERS_SZP
+  offset: 0x5A3240
+  size: 0x6BB0
+
+stadium_models_012:
+  symbol: stadium_models_012
+  type: STADIUM:PERS_SZP
+  offset: 0x5A9DF0
+  size: 0x6950
+
+stadium_models_013:
+  symbol: stadium_models_013
+  type: STADIUM:PERS_SZP
+  offset: 0x5B0740
+  size: 0x6C50
+
+stadium_models_014:
+  symbol: stadium_models_014
+  type: STADIUM:PERS_SZP
+  offset: 0x5B7390
+  size: 0x7360
+
+stadium_models_015:
+  symbol: stadium_models_015
+  type: STADIUM:PERS_SZP
+  offset: 0x5BE6F0
+  size: 0x69B0
+
+stadium_models_016:
+  symbol: stadium_models_016
+  type: STADIUM:PERS_SZP
+  offset: 0x5BE6F0
+  size: 0x69B0
+
+stadium_models_017:
+  symbol: stadium_models_017
+  type: STADIUM:PERS_SZP
+  offset: 0x5C50A0
+  size: 0x29D0
+

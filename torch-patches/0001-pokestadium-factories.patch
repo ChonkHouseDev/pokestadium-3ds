@@ -1,0 +1,295 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 05ebc20..22d8d72 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -16,6 +16,7 @@ option(BUILD_SF64 "Build with Star Fox 64 support" ON)
+ option(BUILD_FZERO "Build with F-Zero X support" ON)
+ option(BUILD_MARIO_ARTIST "Build with Mario Artist support" ON)
+ option(BUILD_NAUDIO "Build with NAudio support" ON)
++option(BUILD_POKESTADIUM "Build with Pokemon Stadium support" ON)
+ 
+ if(EMSCRIPTEN)
+     set(BUILD_SM64 OFF) # TODO: This is broken for some reason
+@@ -106,6 +107,12 @@ else()
+     list(FILTER SRC_DIR EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/factories/naudio/*")
+ endif()
+ 
++if(BUILD_POKESTADIUM)
++    add_definitions(-DPOKESTADIUM_SUPPORT)
++else()
++    list(FILTER SRC_DIR EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/factories/pokestadium/*")
++endif()
++
+ if(ENABLE_ASAN)
+     add_compile_options(-fsanitize=address)
+     add_link_options(-fsanitize=address)
+diff --git a/src/Companion.cpp b/src/Companion.cpp
+index a881533..f954a87 100644
+--- a/src/Companion.cpp
++++ b/src/Companion.cpp
+@@ -21,6 +21,10 @@
+ #include "factories/DisplayListFactory.h"
+ #include "factories/DisplayListOverrides.h"
+ #include "factories/BlobFactory.h"
++
++#ifdef POKESTADIUM_SUPPORT
++#include "factories/pokestadium/StadiumFactories.h"
++#endif
+ #include "factories/LightsFactory.h"
+ #include "factories/Vec3fFactory.h"
+ #include "factories/Vec3sFactory.h"
+@@ -135,6 +139,12 @@ void Companion::Init(const ExportType type) {
+ 
+     this->gConfig.exporterType = type;
+     this->RegisterFactory("BLOB", std::make_shared<BlobFactory>());
++
++#ifdef POKESTADIUM_SUPPORT
++    this->RegisterFactory("STADIUM:PERS_SZP", std::make_shared<PokeStadium::PersSzpFactory>());
++    this->RegisterFactory("STADIUM:RAW", std::make_shared<PokeStadium::RawFactory>());
++    this->RegisterFactory("STADIUM:TEXT", std::make_shared<PokeStadium::TextFactory>());
++#endif
+     this->RegisterFactory("TEXTURE", std::make_shared<TextureFactory>());
+     this->RegisterFactory("VTX", std::make_shared<VtxFactory>());
+     this->RegisterFactory("MTX", std::make_shared<MtxFactory>());
+diff --git a/src/factories/pokestadium/StadiumFactories.cpp b/src/factories/pokestadium/StadiumFactories.cpp
+new file mode 100644
+index 0000000..c12eca0
+--- /dev/null
++++ b/src/factories/pokestadium/StadiumFactories.cpp
+@@ -0,0 +1,168 @@
++#include "StadiumFactories.h"
++
++#include <cstring>
++#include <stdexcept>
++#include <string>
++
++namespace PokeStadium {
++
++static uint32_t BE32(const uint8_t* p) {
++    return (uint32_t(p[0]) << 24) | (uint32_t(p[1]) << 16) | (uint32_t(p[2]) << 8) | uint32_t(p[3]);
++}
++
++static uint16_t BE16(const uint8_t* p) {
++    return uint16_t((p[0] << 8) | p[1]);
++}
++
++// Igual que Yay0_Decompress del juego (src/3FB0.c / libultra).
++std::vector<uint8_t> DecodeYay0(const uint8_t* src, size_t available) {
++    if (available < 16 || std::memcmp(src, "Yay0", 4) != 0) {
++        throw std::runtime_error("Yay0: magic invalido");
++    }
++    const uint32_t size = BE32(src + 4);
++    size_t maskPos = 16;
++    size_t linkPos = BE32(src + 8);
++    size_t chunkPos = BE32(src + 12);
++
++    std::vector<uint8_t> out;
++    out.reserve(size);
++    uint32_t mask = 0;
++    int bits = 0;
++
++    while (out.size() < size) {
++        if (bits == 0) {
++            if (maskPos + 4 > available) throw std::runtime_error("Yay0: mascara fuera de rango");
++            mask = BE32(src + maskPos);
++            maskPos += 4;
++            bits = 32;
++        }
++        if (mask & 0x80000000) {
++            if (chunkPos >= available) throw std::runtime_error("Yay0: chunk fuera de rango");
++            out.push_back(src[chunkPos++]);
++        } else {
++            if (linkPos + 2 > available) throw std::runtime_error("Yay0: link fuera de rango");
++            const uint16_t v = BE16(src + linkPos);
++            linkPos += 2;
++            const size_t dist = (v & 0xFFF) + 1;
++            size_t count = v >> 12;
++            if (count == 0) {
++                if (chunkPos >= available) throw std::runtime_error("Yay0: chunk fuera de rango");
++                count = src[chunkPos++] + 18;
++            } else {
++                count += 2;
++            }
++            if (dist > out.size()) throw std::runtime_error("Yay0: referencia hacia atras invalida");
++            for (size_t i = 0; i < count && out.size() < size; i++) {
++                out.push_back(out[out.size() - dist]);
++            }
++        }
++        mask <<= 1;
++        bits--;
++    }
++    return out;
++}
++
++// Igual que func_80003890 (src/3FB0.c).
++std::vector<uint8_t> DecodePersSzp(const uint8_t* src, size_t available) {
++    if (available < 0x18 || std::memcmp(src, "PERS-SZP", 8) != 0) {
++        throw std::runtime_error("PERS-SZP: magic invalido");
++    }
++    const uint32_t headerSize = BE32(src + 0x08);
++    const uint32_t size2 = BE32(src + 0x10);
++    const uint32_t patches = BE32(src + 0x14);
++
++    std::vector<uint8_t> mem = DecodeYay0(src + headerSize, available - headerSize);
++    if (mem.size() < size2) {
++        mem.resize(size2, 0); // bzero de la diferencia entre decompressed_size1 y decompressed_size2
++    }
++
++    const uint8_t* p = src + 0x18;
++    for (uint32_t i = 0; i < patches; i++, p += 8) {
++        const uint32_t value = BE32(p);
++        const uint32_t at = BE32(p + 4);
++        if (at + 4 > mem.size()) throw std::runtime_error("PERS-SZP: parche fuera de rango");
++        mem[at + 0] = uint8_t(value >> 24);
++        mem[at + 1] = uint8_t(value >> 16);
++        mem[at + 2] = uint8_t(value >> 8);
++        mem[at + 3] = uint8_t(value);
++    }
++    mem.resize(size2);
++    return mem;
++}
++
++static void Swap32At(std::vector<uint8_t>& d, size_t at) {
++    if (at + 4 > d.size()) return;
++    std::swap(d[at], d[at + 3]);
++    std::swap(d[at + 1], d[at + 2]);
++}
++
++// FRAGMENT de datos (modelos, animaciones, tablas): convierte a little-endian lo que tiene tipo conocido.
++//   0x00 u32 inst[2] | 0x08 "FRAGMENT" | 0x10 u32 headerSize, relocOffset, sizeInRom, sizeInRam
++//   relocOffset: u32 n + n x u32 (tipo << 24 | offset)
++// Ademas, cada palabra con reubicacion R_MIPS_32 es un apuntador (u32) y se voltea tambien.
++// El resto de los datos sigue en big-endian hasta que exista un convertidor para su formato.
++void FragmentToNative(std::vector<uint8_t>& d) {
++    if (d.size() < 0x20 || std::memcmp(d.data() + 8, "FRAGMENT", 8) != 0) return;
++    const uint32_t relocOffset = BE32(d.data() + 0x14);
++    const uint32_t sizeInRam = BE32(d.data() + 0x1C);
++    if (relocOffset + 4 > d.size()) return;
++    const uint32_t n = BE32(d.data() + relocOffset);
++    for (uint32_t i = 0; i < n; i++) {
++        const size_t at = relocOffset + 4 + i * 4;
++        if (at + 4 > d.size()) break;
++        const uint32_t reloc = BE32(d.data() + at);
++        const uint32_t type = (reloc & 0x7F000000) >> 24;
++        const uint32_t off = reloc & 0xFFFFFF;
++        if (type == 2 /* R_MIPS_32 */ && off < relocOffset) Swap32At(d, off);
++        Swap32At(d, at);
++    }
++    Swap32At(d, relocOffset);
++    for (size_t at : { 0x0, 0x4, 0x10, 0x14, 0x18, 0x1C }) Swap32At(d, at);
++    (void)sizeInRam;
++}
++
++static const uint8_t* RomAt(std::vector<uint8_t>& buffer, YAML::Node& node, size_t& available) {
++    const auto offset = GetSafeNode<uint32_t>(node, "offset");
++    if (offset >= buffer.size()) {
++        throw std::runtime_error("offset fuera de la ROM: " + std::to_string(offset));
++    }
++    available = buffer.size() - offset;
++    if (node["size"]) {
++        available = std::min<size_t>(available, node["size"].as<size_t>());
++    }
++    return buffer.data() + offset;
++}
++
++std::optional<std::shared_ptr<IParsedData>> PersSzpFactory::parse(std::vector<uint8_t>& buffer, YAML::Node& node) {
++    size_t available;
++    const uint8_t* src = RomAt(buffer, node, available);
++    auto data = DecodePersSzp(src, available);
++    FragmentToNative(data);
++    return std::make_shared<RawBuffer>(data);
++}
++
++std::optional<std::shared_ptr<IParsedData>> RawFactory::parse(std::vector<uint8_t>& buffer, YAML::Node& node) {
++    size_t available;
++    const uint8_t* src = RomAt(buffer, node, available);
++    if (!node["size"]) {
++        throw std::runtime_error("STADIUM:RAW requiere size");
++    }
++    std::vector<uint8_t> data(src, src + available);
++    FragmentToNative(data);
++    return std::make_shared<RawBuffer>(data);
++}
++
++// Archivos de texto (textdata): [u32 n][n x u32 offset][cadenas]. Se voltea solo la tabla.
++std::optional<std::shared_ptr<IParsedData>> TextFactory::parse(std::vector<uint8_t>& buffer, YAML::Node& node) {
++    size_t available;
++    const uint8_t* src = RomAt(buffer, node, available);
++    std::vector<uint8_t> out(src, src + available);
++    const uint32_t n = BE32(src);
++    for (uint32_t i = 0; i <= n && (i + 1) * 4 <= out.size(); i++) {
++        const uint32_t v = BE32(src + i * 4);
++        std::memcpy(out.data() + i * 4, &v, 4); // Torch corre en little-endian
++    }
++    return std::make_shared<RawBuffer>(out);
++}
++
++} // namespace PokeStadium
+diff --git a/src/factories/pokestadium/StadiumFactories.h b/src/factories/pokestadium/StadiumFactories.h
+new file mode 100644
+index 0000000..066b00a
+--- /dev/null
++++ b/src/factories/pokestadium/StadiumFactories.h
+@@ -0,0 +1,62 @@
++#pragma once
++
++// Factories de Pokemon Stadium para Torch.
++//
++//  STADIUM:PERS_SZP  Contenedor "PERS-SZP": Yay0 + tabla de parches (valor, offset) + relleno con ceros.
++//                    Se exporta ya descomprimido como Blob.
++//  STADIUM:RAW       Rango crudo de la ROM (offset absoluto en la ROM, sin traducir segmentos).
++//  STADIUM:TEXT      Archivo de texto: u32 n, n offsets u32 y las cadenas. La tabla sale en little-endian.
++//
++// Los offsets son siempre absolutos en la ROM. Torch interpreta como "segmentados" los valores con
++// byte alto 0x01..0x1F, lo que choca con los assets de Stadium ubicados arriba de 0x1000000, asi que
++// estas factories leen el buffer directamente en lugar de usar Decompressor::AutoDecode.
++
++#include "factories/BaseFactory.h"
++#include "factories/BlobFactory.h"
++#include "types/RawBuffer.h"
++
++#include <cstdint>
++#include <vector>
++
++namespace PokeStadium {
++
++std::vector<uint8_t> DecodeYay0(const uint8_t* src, size_t available);
++std::vector<uint8_t> DecodePersSzp(const uint8_t* src, size_t available);
++
++class PersSzpFactory : public BaseFactory {
++public:
++    std::optional<std::shared_ptr<IParsedData>> parse(std::vector<uint8_t>& buffer, YAML::Node& data) override;
++    inline std::unordered_map<ExportType, std::shared_ptr<BaseExporter>> GetExporters() override {
++        return {
++            REGISTER(Header, BlobHeaderExporter)
++            REGISTER(Binary, BlobBinaryExporter)
++            REGISTER(Code, BlobCodeExporter)
++        };
++    }
++};
++
++class RawFactory : public BaseFactory {
++public:
++    std::optional<std::shared_ptr<IParsedData>> parse(std::vector<uint8_t>& buffer, YAML::Node& data) override;
++    inline std::unordered_map<ExportType, std::shared_ptr<BaseExporter>> GetExporters() override {
++        return {
++            REGISTER(Header, BlobHeaderExporter)
++            REGISTER(Binary, BlobBinaryExporter)
++            REGISTER(Code, BlobCodeExporter)
++        };
++    }
++};
++
++class TextFactory : public BaseFactory {
++public:
++    std::optional<std::shared_ptr<IParsedData>> parse(std::vector<uint8_t>& buffer, YAML::Node& data) override;
++    inline std::unordered_map<ExportType, std::shared_ptr<BaseExporter>> GetExporters() override {
++        return {
++            REGISTER(Header, BlobHeaderExporter)
++            REGISTER(Binary, BlobBinaryExporter)
++            REGISTER(Code, BlobCodeExporter)
++        };
++    }
++};
++
++} // namespace PokeStadium

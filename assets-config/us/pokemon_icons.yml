@@ -1,0 +1,918 @@
+pokemon_icons_header:
+  symbol: pokemon_icons_header
+  type: STADIUM:RAW
+  offset: 0x820000
+  size: 0x990
+
+pokemon_icons_000:
+  symbol: pokemon_icons_000
+  type: STADIUM:RAW
+  offset: 0x820990
+  size: 0xC80
+
+pokemon_icons_001:
+  symbol: pokemon_icons_001
+  type: STADIUM:RAW
+  offset: 0x821610
+  size: 0xC80
+
+pokemon_icons_002:
+  symbol: pokemon_icons_002
+  type: STADIUM:RAW
+  offset: 0x822290
+  size: 0xC80
+
+pokemon_icons_003:
+  symbol: pokemon_icons_003
+  type: STADIUM:RAW
+  offset: 0x822F10
+  size: 0xC80
+
+pokemon_icons_004:
+  symbol: pokemon_icons_004
+  type: STADIUM:RAW
+  offset: 0x823B90
+  size: 0xC80
+
+pokemon_icons_005:
+  symbol: pokemon_icons_005
+  type: STADIUM:RAW
+  offset: 0x824810
+  size: 0xC80
+
+pokemon_icons_006:
+  symbol: pokemon_icons_006
+  type: STADIUM:RAW
+  offset: 0x825490
+  size: 0xC80
+
+pokemon_icons_007:
+  symbol: pokemon_icons_007
+  type: STADIUM:RAW
+  offset: 0x826110
+  size: 0xC80
+
+pokemon_icons_008:
+  symbol: pokemon_icons_008
+  type: STADIUM:RAW
+  offset: 0x826D90
+  size: 0xC80
+
+pokemon_icons_009:
+  symbol: pokemon_icons_009
+  type: STADIUM:RAW
+  offset: 0x827A10
+  size: 0xC80
+
+pokemon_icons_010:
+  symbol: pokemon_icons_010
+  type: STADIUM:RAW
+  offset: 0x828690
+  size: 0xC80
+
+pokemon_icons_011:
+  symbol: pokemon_icons_011
+  type: STADIUM:RAW
+  offset: 0x829310
+  size: 0xC80
+
+pokemon_icons_012:
+  symbol: pokemon_icons_012
+  type: STADIUM:RAW
+  offset: 0x829F90
+  size: 0xC80
+
+pokemon_icons_013:
+  symbol: pokemon_icons_013
+  type: STADIUM:RAW
+  offset: 0x82AC10
+  size: 0xC80
+
+pokemon_icons_014:
+  symbol: pokemon_icons_014
+  type: STADIUM:RAW
+  offset: 0x82B890
+  size: 0xC80
+
+pokemon_icons_015:
+  symbol: pokemon_icons_015
+  type: STADIUM:RAW
+  offset: 0x82C510
+  size: 0xC80
+
+pokemon_icons_016:
+  symbol: pokemon_icons_016
+  type: STADIUM:RAW
+  offset: 0x82D190
+  size: 0xC80
+
+pokemon_icons_017:
+  symbol: pokemon_icons_017
+  type: STADIUM:RAW
+  offset: 0x82DE10
+  size: 0xC80
+
+pokemon_icons_018:
+  symbol: pokemon_icons_018
+  type: STADIUM:RAW
+  offset: 0x82EA90
+  size: 0xC80
+
+pokemon_icons_019:
+  symbol: pokemon_icons_019
+  type: STADIUM:RAW
+  offset: 0x82F710
+  size: 0xC80
+
+pokemon_icons_020:
+  symbol: pokemon_icons_020
+  type: STADIUM:RAW
+  offset: 0x830390
+  size: 0xC80
+
+pokemon_icons_021:
+  symbol: pokemon_icons_021
+  type: STADIUM:RAW
+  offset: 0x831010
+  size: 0xC80
+
+pokemon_icons_022:
+  symbol: pokemon_icons_022
+  type: STADIUM:RAW
+  offset: 0x831C90
+  size: 0xC80
+
+pokemon_icons_023:
+  symbol: pokemon_icons_023
+  type: STADIUM:RAW
+  offset: 0x832910
+  size: 0xC80
+
+pokemon_icons_024:
+  symbol: pokemon_icons_024
+  type: STADIUM:RAW
+  offset: 0x833590
+  size: 0xC80
+
+pokemon_icons_025:
+  symbol: pokemon_icons_025
+  type: STADIUM:RAW
+  offset: 0x834210
+  size: 0xC80
+
+pokemon_icons_026:
+  symbol: pokemon_icons_026
+  type: STADIUM:RAW
+  offset: 0x834E90
+  size: 0xC80
+
+pokemon_icons_027:
+  symbol: pokemon_icons_027
+  type: STADIUM:RAW
+  offset: 0x835B10
+  size: 0xC80
+
+pokemon_icons_028:
+  symbol: pokemon_icons_028
+  type: STADIUM:RAW
+  offset: 0x836790
+  size: 0xC80
+
+pokemon_icons_029:
+  symbol: pokemon_icons_029
+  type: STADIUM:RAW
+  offset: 0x837410
+  size: 0xC80
+
+pokemon_icons_030:
+  symbol: pokemon_icons_030
+  type: STADIUM:RAW
+  offset: 0x838090
+  size: 0xC80
+
+pokemon_icons_031:
+  symbol: pokemon_icons_031
+  type: STADIUM:RAW
+  offset: 0x838D10
+  size: 0xC80
+
+pokemon_icons_032:
+  symbol: pokemon_icons_032
+  type: STADIUM:RAW
+  offset: 0x839990
+  size: 0xC80
+
+pokemon_icons_033:
+  symbol: pokemon_icons_033
+  type: STADIUM:RAW
+  offset: 0x83A610
+  size: 0xC80
+
+pokemon_icons_034:
+  symbol: pokemon_icons_034
+  type: STADIUM:RAW
+  offset: 0x83B290
+  size: 0xC80
+
+pokemon_icons_035:
+  symbol: pokemon_icons_035
+  type: STADIUM:RAW
+  offset: 0x83BF10
+  size: 0xC80
+
+pokemon_icons_036:
+  symbol: pokemon_icons_036
+  type: STADIUM:RAW
+  offset: 0x83CB90
+  size: 0xC80
+
+pokemon_icons_037:
+  symbol: pokemon_icons_037
+  type: STADIUM:RAW
+  offset: 0x83D810
+  size: 0xC80
+
+pokemon_icons_038:
+  symbol: pokemon_icons_038
+  type: STADIUM:RAW
+  offset: 0x83E490
+  size: 0xC80
+
+pokemon_icons_039:
+  symbol: pokemon_icons_039
+  type: STADIUM:RAW
+  offset: 0x83F110
+  size: 0xC80
+
+pokemon_icons_040:
+  symbol: pokemon_icons_040
+  type: STADIUM:RAW
+  offset: 0x83FD90
+  size: 0xC80
+
+pokemon_icons_041:
+  symbol: pokemon_icons_041
+  type: STADIUM:RAW
+  offset: 0x840A10
+  size: 0xC80
+
+pokemon_icons_042:
+  symbol: pokemon_icons_042
+  type: STADIUM:RAW
+  offset: 0x841690
+  size: 0xC80
+
+pokemon_icons_043:
+  symbol: pokemon_icons_043
+  type: STADIUM:RAW
+  offset: 0x842310
+  size: 0xC80
+
+pokemon_icons_044:
+  symbol: pokemon_icons_044
+  type: STADIUM:RAW
+  offset: 0x842F90
+  size: 0xC80
+
+pokemon_icons_045:
+  symbol: pokemon_icons_045
+  type: STADIUM:RAW
+  offset: 0x843C10
+  size: 0xC80
+
+pokemon_icons_046:
+  symbol: pokemon_icons_046
+  type: STADIUM:RAW
+  offset: 0x844890
+  size: 0xC80
+
+pokemon_icons_047:
+  symbol: pokemon_icons_047
+  type: STADIUM:RAW
+  offset: 0x845510
+  size: 0xC80
+
+pokemon_icons_048:
+  symbol: pokemon_icons_048
+  type: STADIUM:RAW
+  offset: 0x846190
+  size: 0xC80
+
+pokemon_icons_049:
+  symbol: pokemon_icons_049
+  type: STADIUM:RAW
+  offset: 0x846E10
+  size: 0xC80
+
+pokemon_icons_050:
+  symbol: pokemon_icons_050
+  type: STADIUM:RAW
+  offset: 0x847A90
+  size: 0xC80
+
+pokemon_icons_051:
+  symbol: pokemon_icons_051
+  type: STADIUM:RAW
+  offset: 0x848710
+  size: 0xC80
+
+pokemon_icons_052:
+  symbol: pokemon_icons_052
+  type: STADIUM:RAW
+  offset: 0x849390
+  size: 0xC80
+
+pokemon_icons_053:
+  symbol: pokemon_icons_053
+  type: STADIUM:RAW
+  offset: 0x84A010
+  size: 0xC80
+
+pokemon_icons_054:
+  symbol: pokemon_icons_054
+  type: STADIUM:RAW
+  offset: 0x84AC90
+  size: 0xC80
+
+pokemon_icons_055:
+  symbol: pokemon_icons_055
+  type: STADIUM:RAW
+  offset: 0x84B910
+  size: 0xC80
+
+pokemon_icons_056:
+  symbol: pokemon_icons_056
+  type: STADIUM:RAW
+  offset: 0x84C590
+  size: 0xC80
+
+pokemon_icons_057:
+  symbol: pokemon_icons_057
+  type: STADIUM:RAW
+  offset: 0x84D210
+  size: 0xC80
+
+pokemon_icons_058:
+  symbol: pokemon_icons_058
+  type: STADIUM:RAW
+  offset: 0x84DE90
+  size: 0xC80
+
+pokemon_icons_059:
+  symbol: pokemon_icons_059
+  type: STADIUM:RAW
+  offset: 0x84EB10
+  size: 0xC80
+
+pokemon_icons_060:
+  symbol: pokemon_icons_060
+  type: STADIUM:RAW
+  offset: 0x84F790
+  size: 0xC80
+
+pokemon_icons_061:
+  symbol: pokemon_icons_061
+  type: STADIUM:RAW
+  offset: 0x850410
+  size: 0xC80
+
+pokemon_icons_062:
+  symbol: pokemon_icons_062
+  type: STADIUM:RAW
+  offset: 0x851090
+  size: 0xC80
+
+pokemon_icons_063:
+  symbol: pokemon_icons_063
+  type: STADIUM:RAW
+  offset: 0x851D10
+  size: 0xC80
+
+pokemon_icons_064:
+  symbol: pokemon_icons_064
+  type: STADIUM:RAW
+  offset: 0x852990
+  size: 0xC80
+
+pokemon_icons_065:
+  symbol: pokemon_icons_065
+  type: STADIUM:RAW
+  offset: 0x853610
+  size: 0xC80
+
+pokemon_icons_066:
+  symbol: pokemon_icons_066
+  type: STADIUM:RAW
+  offset: 0x854290
+  size: 0xC80
+
+pokemon_icons_067:
+  symbol: pokemon_icons_067
+  type: STADIUM:RAW
+  offset: 0x854F10
+  size: 0xC80
+
+pokemon_icons_068:
+  symbol: pokemon_icons_068
+  type: STADIUM:RAW
+  offset: 0x855B90
+  size: 0xC80
+
+pokemon_icons_069:
+  symbol: pokemon_icons_069
+  type: STADIUM:RAW
+  offset: 0x856810
+  size: 0xC80
+
+pokemon_icons_070:
+  symbol: pokemon_icons_070
+  type: STADIUM:RAW
+  offset: 0x857490
+  size: 0xC80
+
+pokemon_icons_071:
+  symbol: pokemon_icons_071
+  type: STADIUM:RAW
+  offset: 0x858110
+  size: 0xC80
+
+pokemon_icons_072:
+  symbol: pokemon_icons_072
+  type: STADIUM:RAW
+  offset: 0x858D90
+  size: 0xC80
+
+pokemon_icons_073:
+  symbol: pokemon_icons_073
+  type: STADIUM:RAW
+  offset: 0x859A10
+  size: 0xC80
+
+pokemon_icons_074:
+  symbol: pokemon_icons_074
+  type: STADIUM:RAW
+  offset: 0x85A690
+  size: 0xC80
+
+pokemon_icons_075:
+  symbol: pokemon_icons_075
+  type: STADIUM:RAW
+  offset: 0x85B310
+  size: 0xC80
+
+pokemon_icons_076:
+  symbol: pokemon_icons_076
+  type: STADIUM:RAW
+  offset: 0x85BF90
+  size: 0xC80
+
+pokemon_icons_077:
+  symbol: pokemon_icons_077
+  type: STADIUM:RAW
+  offset: 0x85CC10
+  size: 0xC80
+
+pokemon_icons_078:
+  symbol: pokemon_icons_078
+  type: STADIUM:RAW
+  offset: 0x85D890
+  size: 0xC80
+
+pokemon_icons_079:
+  symbol: pokemon_icons_079
+  type: STADIUM:RAW
+  offset: 0x85E510
+  size: 0xC80
+
+pokemon_icons_080:
+  symbol: pokemon_icons_080
+  type: STADIUM:RAW
+  offset: 0x85F190
+  size: 0xC80
+
+pokemon_icons_081:
+  symbol: pokemon_icons_081
+  type: STADIUM:RAW
+  offset: 0x85FE10
+  size: 0xC80
+
+pokemon_icons_082:
+  symbol: pokemon_icons_082
+  type: STADIUM:RAW
+  offset: 0x860A90
+  size: 0xC80
+
+pokemon_icons_083:
+  symbol: pokemon_icons_083
+  type: STADIUM:RAW
+  offset: 0x861710
+  size: 0xC80
+
+pokemon_icons_084:
+  symbol: pokemon_icons_084
+  type: STADIUM:RAW
+  offset: 0x862390
+  size: 0xC80
+
+pokemon_icons_085:
+  symbol: pokemon_icons_085
+  type: STADIUM:RAW
+  offset: 0x863010
+  size: 0xC80
+
+pokemon_icons_086:
+  symbol: pokemon_icons_086
+  type: STADIUM:RAW
+  offset: 0x863C90
+  size: 0xC80
+
+pokemon_icons_087:
+  symbol: pokemon_icons_087
+  type: STADIUM:RAW
+  offset: 0x864910
+  size: 0xC80
+
+pokemon_icons_088:
+  symbol: pokemon_icons_088
+  type: STADIUM:RAW
+  offset: 0x865590
+  size: 0xC80
+
+pokemon_icons_089:
+  symbol: pokemon_icons_089
+  type: STADIUM:RAW
+  offset: 0x866210
+  size: 0xC80
+
+pokemon_icons_090:
+  symbol: pokemon_icons_090
+  type: STADIUM:RAW
+  offset: 0x866E90
+  size: 0xC80
+
+pokemon_icons_091:
+  symbol: pokemon_icons_091
+  type: STADIUM:RAW
+  offset: 0x867B10
+  size: 0xC80
+
+pokemon_icons_092:
+  symbol: pokemon_icons_092
+  type: STADIUM:RAW
+  offset: 0x868790
+  size: 0xC80
+
+pokemon_icons_093:
+  symbol: pokemon_icons_093
+  type: STADIUM:RAW
+  offset: 0x869410
+  size: 0xC80
+
+pokemon_icons_094:
+  symbol: pokemon_icons_094
+  type: STADIUM:RAW
+  offset: 0x86A090
+  size: 0xC80
+
+pokemon_icons_095:
+  symbol: pokemon_icons_095
+  type: STADIUM:RAW
+  offset: 0x86AD10
+  size: 0xC80
+
+pokemon_icons_096:
+  symbol: pokemon_icons_096
+  type: STADIUM:RAW
+  offset: 0x86B990
+  size: 0xC80
+
+pokemon_icons_097:
+  symbol: pokemon_icons_097
+  type: STADIUM:RAW
+  offset: 0x86C610
+  size: 0xC80
+
+pokemon_icons_098:
+  symbol: pokemon_icons_098
+  type: STADIUM:RAW
+  offset: 0x86D290
+  size: 0xC80
+
+pokemon_icons_099:
+  symbol: pokemon_icons_099
+  type: STADIUM:RAW
+  offset: 0x86DF10
+  size: 0xC80
+
+pokemon_icons_100:
+  symbol: pokemon_icons_100
+  type: STADIUM:RAW
+  offset: 0x86EB90
+  size: 0xC80
+
+pokemon_icons_101:
+  symbol: pokemon_icons_101
+  type: STADIUM:RAW
+  offset: 0x86F810
+  size: 0xC80
+
+pokemon_icons_102:
+  symbol: pokemon_icons_102
+  type: STADIUM:RAW
+  offset: 0x870490
+  size: 0xC80
+
+pokemon_icons_103:
+  symbol: pokemon_icons_103
+  type: STADIUM:RAW
+  offset: 0x871110
+  size: 0xC80
+
+pokemon_icons_104:
+  symbol: pokemon_icons_104
+  type: STADIUM:RAW
+  offset: 0x871D90
+  size: 0xC80
+
+pokemon_icons_105:
+  symbol: pokemon_icons_105
+  type: STADIUM:RAW
+  offset: 0x872A10
+  size: 0xC80
+
+pokemon_icons_106:
+  symbol: pokemon_icons_106
+  type: STADIUM:RAW
+  offset: 0x873690
+  size: 0xC80
+
+pokemon_icons_107:
+  symbol: pokemon_icons_107
+  type: STADIUM:RAW
+  offset: 0x874310
+  size: 0xC80
+
+pokemon_icons_108:
+  symbol: pokemon_icons_108
+  type: STADIUM:RAW
+  offset: 0x874F90
+  size: 0xC80
+
+pokemon_icons_109:
+  symbol: pokemon_icons_109
+  type: STADIUM:RAW
+  offset: 0x875C10
+  size: 0xC80
+
+pokemon_icons_110:
+  symbol: pokemon_icons_110
+  type: STADIUM:RAW
+  offset: 0x876890
+  size: 0xC80
+
+pokemon_icons_111:
+  symbol: pokemon_icons_111
+  type: STADIUM:RAW
+  offset: 0x877510
+  size: 0xC80
+
+pokemon_icons_112:
+  symbol: pokemon_icons_112
+  type: STADIUM:RAW
+  offset: 0x878190
+  size: 0xC80
+
+pokemon_icons_113:
+  symbol: pokemon_icons_113
+  type: STADIUM:RAW
+  offset: 0x878E10
+  size: 0xC80
+
+pokemon_icons_114:
+  symbol: pokemon_icons_114
+  type: STADIUM:RAW
+  offset: 0x879A90
+  size: 0xC80
+
+pokemon_icons_115:
+  symbol: pokemon_icons_115
+  type: STADIUM:RAW
+  offset: 0x87A710
+  size: 0xC80
+
+pokemon_icons_116:
+  symbol: pokemon_icons_116
+  type: STADIUM:RAW
+  offset: 0x87B390
+  size: 0xC80
+
+pokemon_icons_117:
+  symbol: pokemon_icons_117
+  type: STADIUM:RAW
+  offset: 0x87C010
+  size: 0xC80
+
+pokemon_icons_118:
+  symbol: pokemon_icons_118
+  type: STADIUM:RAW
+  offset: 0x87CC90
+  size: 0xC80
+
+pokemon_icons_119:
+  symbol: pokemon_icons_119
+  type: STADIUM:RAW
+  offset: 0x87D910
+  size: 0xC80
+
+pokemon_icons_120:
+  symbol: pokemon_icons_120
+  type: STADIUM:RAW
+  offset: 0x87E590
+  size: 0xC80
+
+pokemon_icons_121:
+  symbol: pokemon_icons_121
+  type: STADIUM:RAW
+  offset: 0x87F210
+  size: 0xC80
+
+pokemon_icons_122:
+  symbol: pokemon_icons_122
+  type: STADIUM:RAW
+  offset: 0x87FE90
+  size: 0xC80
+
+pokemon_icons_123:
+  symbol: pokemon_icons_123
+  type: STADIUM:RAW
+  offset: 0x880B10
+  size: 0xC80
+
+pokemon_icons_124:
+  symbol: pokemon_icons_124
+  type: STADIUM:RAW
+  offset: 0x881790
+  size: 0xC80
+
+pokemon_icons_125:
+  symbol: pokemon_icons_125
+  type: STADIUM:RAW
+  offset: 0x882410
+  size: 0xC80
+
+pokemon_icons_126:
+  symbol: pokemon_icons_126
+  type: STADIUM:RAW
+  offset: 0x883090
+  size: 0xC80
+
+pokemon_icons_127:
+  symbol: pokemon_icons_127
+  type: STADIUM:RAW
+  offset: 0x883D10
+  size: 0xC80
+
+pokemon_icons_128:
+  symbol: pokemon_icons_128
+  type: STADIUM:RAW
+  offset: 0x884990
+  size: 0xC80
+
+pokemon_icons_129:
+  symbol: pokemon_icons_129
+  type: STADIUM:RAW
+  offset: 0x885610
+  size: 0xC80
+
+pokemon_icons_130:
+  symbol: pokemon_icons_130
+  type: STADIUM:RAW
+  offset: 0x886290
+  size: 0xC80
+
+pokemon_icons_131:
+  symbol: pokemon_icons_131
+  type: STADIUM:RAW
+  offset: 0x886F10
+  size: 0xC80
+
+pokemon_icons_132:
+  symbol: pokemon_icons_132
+  type: STADIUM:RAW
+  offset: 0x887B90
+  size: 0xC80
+
+pokemon_icons_133:
+  symbol: pokemon_icons_133
+  type: STADIUM:RAW
+  offset: 0x888810
+  size: 0xC80
+
+pokemon_icons_134:
+  symbol: pokemon_icons_134
+  type: STADIUM:RAW
+  offset: 0x889490
+  size: 0xC80
+
+pokemon_icons_135:
+  symbol: pokemon_icons_135
+  type: STADIUM:RAW
+  offset: 0x88A110
+  size: 0xC80
+
+pokemon_icons_136:
+  symbol: pokemon_icons_136
+  type: STADIUM:RAW
+  offset: 0x88AD90
+  size: 0xC80
+
+pokemon_icons_137:
+  symbol: pokemon_icons_137
+  type: STADIUM:RAW
+  offset: 0x88BA10
+  size: 0xC80
+
+pokemon_icons_138:
+  symbol: pokemon_icons_138
+  type: STADIUM:RAW
+  offset: 0x88C690
+  size: 0xC80
+
+pokemon_icons_139:
+  symbol: pokemon_icons_139
+  type: STADIUM:RAW
+  offset: 0x88D310
+  size: 0xC80
+
+pokemon_icons_140:
+  symbol: pokemon_icons_140
+  type: STADIUM:RAW
+  offset: 0x88DF90
+  size: 0xC80
+
+pokemon_icons_141:
+  symbol: pokemon_icons_141
+  type: STADIUM:RAW
+  offset: 0x88EC10
+  size: 0xC80
+
+pokemon_icons_142:
+  symbol: pokemon_icons_142
+  type: STADIUM:RAW
+  offset: 0x88F890
+  size: 0xC80
+
+pokemon_icons_143:
+  symbol: pokemon_icons_143
+  type: STADIUM:RAW
+  offset: 0x890510
+  size: 0xC80
+
+pokemon_icons_144:
+  symbol: pokemon_icons_144
+  type: STADIUM:RAW
+  offset: 0x891190
+  size: 0xC80
+
+pokemon_icons_145:
+  symbol: pokemon_icons_145
+  type: STADIUM:RAW
+  offset: 0x891E10
+  size: 0xC80
+
+pokemon_icons_146:
+  symbol: pokemon_icons_146
+  type: STADIUM:RAW
+  offset: 0x892A90
+  size: 0xC80
+
+pokemon_icons_147:
+  symbol: pokemon_icons_147
+  type: STADIUM:RAW
+  offset: 0x893710
+  size: 0xC80
+
+pokemon_icons_148:
+  symbol: pokemon_icons_148
+  type: STADIUM:RAW
+  offset: 0x894390
+  size: 0xC80
+
+pokemon_icons_149:
+  symbol: pokemon_icons_149
+  type: STADIUM:RAW
+  offset: 0x895010
+  size: 0xC80
+
+pokemon_icons_150:
+  symbol: pokemon_icons_150
+  type: STADIUM:RAW
+  offset: 0x895C90
+  size: 0xC80
+
+pokemon_icons_151:
+  symbol: pokemon_icons_151
+  type: STADIUM:RAW
+  offset: 0x896910
+  size: 0xC80
+

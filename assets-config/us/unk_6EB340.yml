@@ -1,0 +1,30 @@
+unk_6EB340_header:
+  symbol: unk_6EB340_header
+  type: STADIUM:RAW
+  offset: 0x6EB340
+  size: 0x50
+
+unk_6EB340_000:
+  symbol: unk_6EB340_000
+  type: STADIUM:PERS_SZP
+  offset: 0x6EB390
+  size: 0x450
+
+unk_6EB340_001:
+  symbol: unk_6EB340_001
+  type: STADIUM:PERS_SZP
+  offset: 0x6EB7E0
+  size: 0x450
+
+unk_6EB340_002:
+  symbol: unk_6EB340_002
+  type: STADIUM:PERS_SZP
+  offset: 0x6EBC30
+  size: 0x450
+
+unk_6EB340_003:
+  symbol: unk_6EB340_003
+  type: STADIUM:PERS_SZP
+  offset: 0x6EC080
+  size: 0x450
+

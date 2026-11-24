@@ -1,0 +1,6 @@
+badge_ui:
+  symbol: badge_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x6ECE80
+  size: 0x14FD0
+

@@ -1,0 +1,42 @@
+# Never publish anything from the game
+*.z64
+*.n64
+*.v64
+*.o2r
+*.sav
+*.fla
+# Builds are published only as patches
+*.cia
+*.3dsx
+*.elf
+# Personal images and tools
+minis/
+cartuchos/
+tools/flips.exe
+tools/ext/
+build/
+_borrar/
+cia_config/mi_*
+cia_config/*.cgfx
+cia_config/*.icn
+cia_config/*.bnr
+log.txt
+__pycache__/
+# What each user puts in user\ is theirs: only the READMEs are published
+user/**
+!user/*/
+!user/*/README.txt
+# Custom builds: only the README is published
+custom/**
+!custom/README.txt
+!custom/_template/
+!custom/_template/README.txt
+!custom/_template/*/
+!custom/_template/*/README.txt
+# Your ROM, only for making and verifying patches
+rom/**
+!rom/README.txt
+# Custom patches carry the images of whoever asked for them: never published
+patches/custom/
+# Patches are published on Releases, not in the code
+*.bps

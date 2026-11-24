@@ -1,0 +1,10 @@
+ed7bef5a306f88c0a6e96b15e71fee2ef32058f3:
+  name: Pokemon Stadium [US 1.0]
+  path: assets-config/us
+  config:
+    gbi: F3DEX2
+    sort: OFFSET
+    output:
+      binary: pokestadium.o2r
+      headers: include/assets
+      code: assets/code

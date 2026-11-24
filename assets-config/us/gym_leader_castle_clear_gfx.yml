@@ -1,0 +1,6 @@
+gym_leader_castle_clear_gfx:
+  symbol: gym_leader_castle_clear_gfx
+  type: STADIUM:PERS_SZP
+  offset: 0x66E1D0
+  size: 0x1370
+

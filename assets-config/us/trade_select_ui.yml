@@ -1,0 +1,6 @@
+trade_select_ui:
+  symbol: trade_select_ui
+  type: STADIUM:PERS_SZP
+  offset: 0x613110
+  size: 0xFFC0
+
